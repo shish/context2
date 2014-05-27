@@ -213,12 +213,14 @@ func compileLog(logFile string, databaseFile string) {
 
 			// release the lock which was aquired
 			case e.Type == "LOCKR":
-				s := thread.lock
-				sqlInsertEvent.Exec(
-					thread.id,
-					s.Location, s.Timestamp, s.Type, s.Text,
-					e.Location, e.Timestamp, e.Type, e.Text)
-				thread.lock = nil
+				if thread.lock != nil {
+					s := thread.lock
+					sqlInsertEvent.Exec(
+						thread.id,
+						s.Location, s.Timestamp, s.Type, s.Text,
+						e.Location, e.Timestamp, e.Type, e.Text)
+					thread.lock = nil
+				}
 		}
 	}
 
