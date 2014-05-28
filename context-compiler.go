@@ -1,45 +1,44 @@
 package main
 
 import (
-	"os"
-	"time"
+	"bufio"
 	"fmt"
 	"log"
-	"bufio"
-	"strings"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 	//"runtime/pprof"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	//ctx "github.com/shish/context-apis/go/context"
 )
 
-
 type LogEvent struct {
 	Timestamp float64
-	Node string
-	Process int64
-	Thread string
-	Type string
-	Location string
-	Text string
+	Node      string
+	Process   int64
+	Thread    string
+	Type      string
+	Location  string
+	Text      string
 }
 
 func (self *LogEvent) FromLine(line string) {
 	// TODO regex?
-/*
-	n, _ := fmt.Sscanf(line, "%f %s %d %s %s %s %s\n",
-		&self.Timestamp, &self.Node, &self.Process, &self.Thread,
-		&self.Type, &self.Location, &self.Text)
-	if n < 6 {
-		fmt.Printf("Error parsing %s\n", line)
-	}
-*/
+	/*
+		n, _ := fmt.Sscanf(line, "%f %s %d %s %s %s %s\n",
+			&self.Timestamp, &self.Node, &self.Process, &self.Thread,
+			&self.Type, &self.Location, &self.Text)
+		if n < 6 {
+			fmt.Printf("Error parsing %s\n", line)
+		}
+	*/
 
 	parts := strings.SplitN(strings.Trim(line, "\n"), " ", 7)
 	//fmt.Printf("parts: %d %s\n", len(parts), parts)
-    self.Timestamp, _ = strconv.ParseFloat(parts[0], 64)
+	self.Timestamp, _ = strconv.ParseFloat(parts[0], 64)
 	self.Node = parts[1]
-    self.Process, _ = strconv.ParseInt(parts[2], 10, 32)
+	self.Process, _ = strconv.ParseInt(parts[2], 10, 32)
 	self.Thread = parts[3]
 	self.Type = parts[4]
 	self.Location = parts[5]
@@ -51,29 +50,26 @@ func (self *LogEvent) ThreadID() string {
 }
 
 func (self *LogEvent) EventStr() string {
-    return fmt.Sprintf("%s %s:%s", self.Location, self.Type, self.Text)
+	return fmt.Sprintf("%s %s:%s", self.Location, self.Type, self.Text)
 }
 
 func (self *LogEvent) ToString() string {
-    return self.ThreadID() + " " + self.EventStr()
+	return self.ThreadID() + " " + self.EventStr()
 }
-
 
 type Thread struct {
-	id int
-	name string
+	id    int
+	name  string
 	stack []LogEvent
-	lock *LogEvent
+	lock  *LogEvent
 }
-
 
 func set_status(text string) {
 	fmt.Printf("%s\n", text)
 }
 
-
 func createTables(db *sqlite3.Conn) {
-    db.Exec(`
+	db.Exec(`
         CREATE TABLE IF NOT EXISTS events(
             id integer primary key,
             thread_id integer not null,
@@ -83,7 +79,7 @@ func createTables(db *sqlite3.Conn) {
             start_text text,                end_text text
         );
     `)
-    db.Exec(`
+	db.Exec(`
         CREATE TABLE IF NOT EXISTS threads(
             id integer not null,
             node varchar(32) not null,
@@ -91,50 +87,52 @@ func createTables(db *sqlite3.Conn) {
             thread varchar(32) not null
         );
     `)
-    db.Exec(`
+	db.Exec(`
         CREATE TABLE IF NOT EXISTS summary(
             id integer not null,
 			events integer not null
         );
     `)
-    db.Exec(`
+	db.Exec(`
         CREATE TABLE IF NOT EXISTS settings(
             version integer not null
         );
     `)
 }
 
-
 func progressFile(logFile string, lines chan string) {
-    fp, err := os.Open(logFile)
-	if err != nil {log.Fatal(err)}
-    f_size, err := fp.Seek(0, os.SEEK_END)
-    fp.Seek(0, os.SEEK_SET)
-    timestamp := time.Unix(0, 0)
+	fp, err := os.Open(logFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f_size, err := fp.Seek(0, os.SEEK_END)
+	fp.Seek(0, os.SEEK_SET)
+	timestamp := time.Unix(0, 0)
 	scanner := bufio.NewScanner(fp)
-    for n := 0 ; scanner.Scan() ; n++ {
+	for n := 0; scanner.Scan(); n++ {
 		line := scanner.Text()
 		lines <- line
-        if n % 10000 == 0 {
-            time_taken := time.Since(timestamp).Seconds()
+		if n%10000 == 0 {
+			time_taken := time.Since(timestamp).Seconds()
 			f_pos, _ := fp.Seek(0, os.SEEK_CUR)
-            fmt.Printf("Imported %d events (%d%%, %d/s)\n", n, f_pos * 100.0 / f_size, int(1000.0/time_taken))
-            timestamp = time.Now()
+			fmt.Printf("Imported %d events (%d%%, %d/s)\n", n, f_pos*100.0/f_size, int(1000.0/time_taken))
+			timestamp = time.Now()
 		}
 	}
-    fp.Close()
+	fp.Close()
 	close(lines)
 }
-
 
 func getBounds(logFile string) (float64, float64) {
 	buf := make([]byte, 1024)
 
-    fp, err := os.Open(logFile)
-	if err != nil {log.Fatal(err)}
+	fp, err := os.Open(logFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	n, err := fp.Read(buf)
-	for pos := 0 ; pos < n ; pos++ {
+	for pos := 0; pos < n; pos++ {
 		if buf[pos] == ' ' {
 			buf = buf[:pos]
 			break
@@ -142,12 +140,12 @@ func getBounds(logFile string) (float64, float64) {
 	}
 	first, _ := strconv.ParseFloat(string(buf), 64)
 
-    fp.Seek(-1024, os.SEEK_END)
+	fp.Seek(-1024, os.SEEK_END)
 
 	buf = make([]byte, 1024)
 	n, err = fp.Read(buf)
 	var newline, space int
-	for pos := n - 1 ; pos >= 0 ; pos-- {
+	for pos := n - 1; pos >= 0; pos-- {
 		if buf[pos] == ' ' {
 			space = pos
 		}
@@ -159,16 +157,15 @@ func getBounds(logFile string) (float64, float64) {
 	}
 	last, _ := strconv.ParseFloat(string(buf), 64)
 
-    fp.Close()
+	fp.Close()
 
 	return first, last
 }
 
-
 func compileLog(logFile string, databaseFile string) {
-	os.Remove(databaseFile)  // ignore errors
+	os.Remove(databaseFile) // ignore errors
 
-    db, _ := sqlite3.Open(databaseFile)
+	db, _ := sqlite3.Open(databaseFile)
 	db.Begin()
 	createTables(db)
 
@@ -177,16 +174,16 @@ func compileLog(logFile string, databaseFile string) {
 	thread_name_to_id := make(map[string]int)
 	thread_count := 0
 	/*
-    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
-	for {
-		err := query.Next()
-		if err == io.EOF {
-			break
+	    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
+		for {
+			err := query.Next()
+			if err == io.EOF {
+				break
+			}
+			var node, process, thread string
+			query.Scan(node, process, thread)
+			//thread_names = append(thread_names, )
 		}
-		var node, process, thread string
-		query.Scan(node, process, thread)
-		//thread_names = append(thread_names, )
-	}
 	*/
 
 	sqlInsertBookmark, _ := db.Prepare(`
@@ -211,115 +208,114 @@ func compileLog(logFile string, databaseFile string) {
 
 	lines := make(chan string)
 	go progressFile(logFile, lines)
-    for line := range lines {
-        e := LogEvent{}
+	for line := range lines {
+		e := LogEvent{}
 		e.FromLine(line)
 
-		summary[int((e.Timestamp - firstEventStart) / boundsLength * float64(len(summary)-1))]++
+		summary[int((e.Timestamp-firstEventStart)/boundsLength*float64(len(summary)-1))]++
 
-        thread_name := e.ThreadID()
+		thread_name := e.ThreadID()
 		_, exists := thread_name_to_id[thread_name]
-        if !exists {
+		if !exists {
 			threads = append(threads, Thread{thread_count, thread_name, make([]LogEvent, 0), nil})
 			thread_name_to_id[thread_name] = thread_count
 			thread_count += 1
 		}
-        thread := &threads[thread_name_to_id[thread_name]]
+		thread := &threads[thread_name_to_id[thread_name]]
 
 		switch {
-			case e.Type == "START":
-				thread.stack = append(thread.stack, e)
+		case e.Type == "START":
+			thread.stack = append(thread.stack, e)
 
-			case e.Type == "ENDOK" || e.Type == "ENDER":
-				current_depth := len(thread.stack)
-				if current_depth > 0 {
-					var s LogEvent
-					s, thread.stack = thread.stack[current_depth-1], thread.stack[:current_depth-1]
-					sqlInsertEvent.Exec(
-						thread.id,
-						s.Location, s.Timestamp, s.Type, s.Text,
-						e.Location, e.Timestamp, e.Type, e.Text)
-				}
+		case e.Type == "ENDOK" || e.Type == "ENDER":
+			current_depth := len(thread.stack)
+			if current_depth > 0 {
+				var s LogEvent
+				s, thread.stack = thread.stack[current_depth-1], thread.stack[:current_depth-1]
+				sqlInsertEvent.Exec(
+					thread.id,
+					s.Location, s.Timestamp, s.Type, s.Text,
+					e.Location, e.Timestamp, e.Type, e.Text)
+			}
 
-			case e.Type == "BMARK":
-				sqlInsertBookmark.Exec(
-					thread.id, e.Location, e.Timestamp, e.Type, e.Text)
+		case e.Type == "BMARK":
+			sqlInsertBookmark.Exec(
+				thread.id, e.Location, e.Timestamp, e.Type, e.Text)
 
-			// begin blocking wait for lock
-			case e.Type == "LOCKW":
-				thread.lock = &e
+		// begin blocking wait for lock
+		case e.Type == "LOCKW":
+			thread.lock = &e
 
-			// end blocking wait (if there is one) and aquire lock
-			case e.Type == "LOCKA":
-				if thread.lock != nil {
-					s := thread.lock
-					sqlInsertEvent.Exec(
-						thread.id,
-						s.Location, s.Timestamp, s.Type, s.Text,
-						e.Location, e.Timestamp, e.Type, e.Text)
-					thread.lock = nil
-				}
-				thread.lock = &e
+		// end blocking wait (if there is one) and aquire lock
+		case e.Type == "LOCKA":
+			if thread.lock != nil {
+				s := thread.lock
+				sqlInsertEvent.Exec(
+					thread.id,
+					s.Location, s.Timestamp, s.Type, s.Text,
+					e.Location, e.Timestamp, e.Type, e.Text)
+				thread.lock = nil
+			}
+			thread.lock = &e
 
-			// release the lock which was aquired
-			case e.Type == "LOCKR":
-				if thread.lock != nil {
-					s := thread.lock
-					sqlInsertEvent.Exec(
-						thread.id,
-						s.Location, s.Timestamp, s.Type, s.Text,
-						e.Location, e.Timestamp, e.Type, e.Text)
-					thread.lock = nil
-				}
+		// release the lock which was aquired
+		case e.Type == "LOCKR":
+			if thread.lock != nil {
+				s := thread.lock
+				sqlInsertEvent.Exec(
+					thread.id,
+					s.Location, s.Timestamp, s.Type, s.Text,
+					e.Location, e.Timestamp, e.Type, e.Text)
+				thread.lock = nil
+			}
 		}
 	}
 
-    for idx, thr := range threads {
+	for idx, thr := range threads {
 		parts := strings.Split(thr.name, " ")
-        db.Exec(`
+		db.Exec(`
             INSERT INTO threads(id, node, process, thread)
             VALUES(?, ?, ?, ?)
         `, idx, parts[0], parts[1], parts[2])
 	}
 
-    set_status("Writing summary...")
+	set_status("Writing summary...")
 
-    for idx, events := range summary {
-        db.Exec(`
+	for idx, events := range summary {
+		db.Exec(`
             INSERT INTO summary(id, events)
             VALUES(?, ?)
         `, idx, events)
 	}
 
-    set_status("Indexing bookmarks...")
+	set_status("Indexing bookmarks...")
 
-    db.Exec(`
+	db.Exec(`
         CREATE INDEX IF NOT EXISTS idx_start_type_time ON events(start_type, start_time)
-    `)  // searching for bookmarks
+    `) // searching for bookmarks
 
-    set_status("Indexing events...")
+	set_status("Indexing events...")
 
-    db.Exec(`
+	db.Exec(`
         CREATE VIRTUAL TABLE events_index USING rtree(id, start_time, end_time)
     `)
-    db.Exec(`
+	db.Exec(`
         INSERT INTO events_index
         SELECT id, start_time-?, end_time-?
         FROM events
         WHERE start_time IS NOT NULL AND end_time IS NOT NULL
 	`, firstEventStart, firstEventStart)
 
-    set_status("Writing settings...")
+	set_status("Writing settings...")
 
 	db.Exec(`
 		INSERT INTO settings(version)
 		VALUES(?)
 	`, 1)
 
-    db.Commit()
+	db.Commit()
 	db.Close()
 }
-
 
 func main() {
 	var logFile, databaseFile string
@@ -335,11 +331,10 @@ func main() {
 	}
 
 	if len(os.Args) == 3 {
-	    databaseFile = os.Args[2]
+		databaseFile = os.Args[2]
 	} else {
 		databaseFile = strings.Replace(logFile, ".ctxt", ".cbin", -1)
 	}
 
-    compileLog(logFile, databaseFile)
+	compileLog(logFile, databaseFile)
 }
-
