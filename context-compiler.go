@@ -74,7 +74,7 @@ func set_status(text string) {
 
 func createTables(db *sqlite3.Conn) {
     db.Exec(`
-        CREATE TABLE IF NOT EXISTS cbtv_events(
+        CREATE TABLE IF NOT EXISTS events(
             id integer primary key,
             thread_id integer not null,
             start_location text not null,   end_location text,
@@ -84,11 +84,22 @@ func createTables(db *sqlite3.Conn) {
         );
     `)
     db.Exec(`
-        CREATE TABLE IF NOT EXISTS cbtv_threads(
+        CREATE TABLE IF NOT EXISTS threads(
             id integer not null,
             node varchar(32) not null,
             process integer not null,
             thread varchar(32) not null
+        );
+    `)
+    db.Exec(`
+        CREATE TABLE IF NOT EXISTS summary(
+            id integer not null,
+			events integer not null
+        );
+    `)
+    db.Exec(`
+        CREATE TABLE IF NOT EXISTS settings(
+            version integer not null
         );
     `)
 }
@@ -116,6 +127,44 @@ func progressFile(logFile string, lines chan string) {
 }
 
 
+func getBounds(logFile string) (float64, float64) {
+	buf := make([]byte, 1024)
+
+    fp, err := os.Open(logFile)
+	if err != nil {log.Fatal(err)}
+
+	n, err := fp.Read(buf)
+	for pos := 0 ; pos < n ; pos++ {
+		if buf[pos] == ' ' {
+			buf = buf[:pos]
+			break
+		}
+	}
+	first, _ := strconv.ParseFloat(string(buf), 64)
+
+    fp.Seek(-1024, os.SEEK_END)
+
+	buf = make([]byte, 1024)
+	n, err = fp.Read(buf)
+	var newline, space int
+	for pos := n - 1 ; pos >= 0 ; pos-- {
+		if buf[pos] == ' ' {
+			space = pos
+		}
+		if buf[pos] == '\n' && space > 0 {
+			newline = pos + 1
+			buf = buf[newline:space]
+			break
+		}
+	}
+	last, _ := strconv.ParseFloat(string(buf), 64)
+
+    fp.Close()
+
+	return first, last
+}
+
+
 func compileLog(logFile string, databaseFile string) {
 	os.Remove(databaseFile)  // ignore errors
 
@@ -123,12 +172,12 @@ func compileLog(logFile string, databaseFile string) {
 	db.Begin()
 	createTables(db)
 
-	var first_event_start float64
 	var threads []Thread
+	var summary []int = make([]int, 1000)
 	thread_name_to_id := make(map[string]int)
 	thread_count := 0
 	/*
-    query, _ := db.Query("SELECT node, process, thread FROM cbtv_threads ORDER BY id")
+    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
 	for {
 		err := query.Next()
 		if err == io.EOF {
@@ -141,11 +190,11 @@ func compileLog(logFile string, databaseFile string) {
 	*/
 
 	sqlInsertBookmark, _ := db.Prepare(`
-        INSERT INTO cbtv_events(thread_id, start_location, start_time, start_type, start_text)
+        INSERT INTO events(thread_id, start_location, start_time, start_type, start_text)
         VALUES(?, ?, ?, ?, ?)
     `)
 	sqlInsertEvent, _ := db.Prepare(`
-        INSERT INTO cbtv_events(
+        INSERT INTO events(
             thread_id,
             start_location, start_time, start_type, start_text,
             end_location, end_time, end_type, end_text
@@ -157,11 +206,16 @@ func compileLog(logFile string, databaseFile string) {
         )
     `)
 
+	firstEventStart, lastEventEnd := getBounds(logFile)
+	boundsLength := lastEventEnd - firstEventStart
+
 	lines := make(chan string)
 	go progressFile(logFile, lines)
     for line := range lines {
         e := LogEvent{}
 		e.FromLine(line)
+
+		summary[int((e.Timestamp - firstEventStart) / boundsLength * float64(len(summary)-1))]++
 
         thread_name := e.ThreadID()
 		_, exists := thread_name_to_id[thread_name]
@@ -171,10 +225,6 @@ func compileLog(logFile string, databaseFile string) {
 			thread_count += 1
 		}
         thread := &threads[thread_name_to_id[thread_name]]
-
-        if first_event_start == 0.0 {
-            first_event_start = e.Timestamp
-		}
 
 		switch {
 			case e.Type == "START":
@@ -224,32 +274,47 @@ func compileLog(logFile string, databaseFile string) {
 		}
 	}
 
-    db.Exec("DELETE FROM cbtv_threads")
     for idx, thr := range threads {
 		parts := strings.Split(thr.name, " ")
         db.Exec(`
-            INSERT INTO cbtv_threads(id, node, process, thread)
+            INSERT INTO threads(id, node, process, thread)
             VALUES(?, ?, ?, ?)
         `, idx, parts[0], parts[1], parts[2])
+	}
+
+    set_status("Writing summary...")
+
+    for idx, events := range summary {
+        db.Exec(`
+            INSERT INTO summary(id, events)
+            VALUES(?, ?)
+        `, idx, events)
 	}
 
     set_status("Indexing bookmarks...")
 
     db.Exec(`
-        CREATE INDEX IF NOT EXISTS idx_start_type_time ON cbtv_events(start_type, start_time)
+        CREATE INDEX IF NOT EXISTS idx_start_type_time ON events(start_type, start_time)
     `)  // searching for bookmarks
 
     set_status("Indexing events...")
 
     db.Exec(`
-        CREATE VIRTUAL TABLE cbtv_events_index USING rtree(id, start_time, end_time)
+        CREATE VIRTUAL TABLE events_index USING rtree(id, start_time, end_time)
     `)
     db.Exec(`
-        INSERT INTO cbtv_events_index
+        INSERT INTO events_index
         SELECT id, start_time-?, end_time-?
-        FROM cbtv_events
+        FROM events
         WHERE start_time IS NOT NULL AND end_time IS NOT NULL
-	`, first_event_start, first_event_start)
+	`, firstEventStart, firstEventStart)
+
+    set_status("Writing settings...")
+
+	db.Exec(`
+		INSERT INTO settings(version)
+		VALUES(?)
+	`, 1)
 
     db.Commit()
 	db.Close()
