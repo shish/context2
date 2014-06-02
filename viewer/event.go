@@ -1,4 +1,4 @@
-package context
+package viewer
 
 import (
 	"fmt"

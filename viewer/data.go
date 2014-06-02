@@ -1,4 +1,4 @@
-package context
+package viewer
 
 import (
 	"fmt"
@@ -147,28 +147,25 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 
 		if event.StartType == "START" {
 			var prevEventAtLevel *Event
-			endIdx := len(threadLevelEnds[thread_idx]) - 1
-			for len(threadLevelEnds[thread_idx]) > 0 && threadLevelEnds[thread_idx][endIdx].EndTime <= event.StartTime {
-				threadLevelEnds[thread_idx], prevEventAtLevel = threadLevelEnds[thread_idx][:endIdx], &threadLevelEnds[thread_idx][endIdx]
+			for {
+				endIdx := len(threadLevelEnds[thread_idx]) - 1
+				if endIdx < 0 || threadLevelEnds[thread_idx][endIdx].EndTime > event.StartTime {
+					break
+				}
+				prevEventAtLevel = &threadLevelEnds[thread_idx][endIdx]
+				threadLevelEnds[thread_idx] = threadLevelEnds[thread_idx][:endIdx]
 			}
 			event.Depth = len(threadLevelEnds[thread_idx])
 
-			self.Data = append(self.Data, event)
-			if false {
-				fmt.Printf("%s %s\n", prevEventAtLevel, threshold)
+			if threshold > 0.0 &&
+				prevEventAtLevel != nil &&
+				prevEventAtLevel.CanMerge(event, threshold) {
+				prevEventAtLevel.Merge(event)
+				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
+			} else {
+				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], event)
+				self.Data = append(self.Data, event)
 			}
-
-			/*
-				if threshold > 0.0 &&
-					prevEventAtLevel != nil &&
-					prevEventAtLevel.CanMerge(event, threshold) {
-					prevEventAtLevel.Merge(event)
-					threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
-				} else {
-					threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], event)
-					self.Data = append(self.Data, event)
-				}
-			*/
 		} else {
 			self.Data = append(self.Data, event)
 		}

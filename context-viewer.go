@@ -11,7 +11,7 @@ import (
 	"github.com/conformal/gotk3/gtk"
 	"github.com/shish/gotk3/cairo"
 	//"github.com/conformal/gotk3/pango"
-	"./context"
+	"./viewer"
 )
 
 const (
@@ -61,26 +61,16 @@ type ContextViewer struct {
 	status      *gtk.Statusbar
 	configFile  string
 	config      Config
-	lastLogDir  string
-	windowReady bool
 
 	// data
-	data context.Data
-
-	// rendering
-	eventIdxOffset    float64
-	renderStart       float64
-	renderLen         float64
-	renderCutoff      float64
-	renderScale       float64
-	coalesceThreshold float64
+	data viewer.Data
+	settings viewer.DataSettings
 }
 
 func (self *ContextViewer) Init(master *gtk.Window, databaseFile *string) {
 	usr, _ := user.Current()
 
 	self.master = master
-	self.windowReady = false
 	/*
 	   self.original_texts = {}
 	   self.tooltips = {}
@@ -93,10 +83,10 @@ func (self *ContextViewer) Init(master *gtk.Window, databaseFile *string) {
 	   except OSError:
 	       pass
 	*/
-	//        self.configFile = os.path.expanduser(os.path.join("~", ".config", "context.cfg"))
-	self.configFile = usr.HomeDir + "/.config/context.cfg"
-	self.renderScale = 50.0
-	self.renderLen = 10.0
+	//        self.configFile = os.path.expanduser(os.path.join("~", ".config", "viewer.cfg"))
+	self.configFile = usr.HomeDir + "/.config/viewer.cfg"
+	self.settings.RenderScale = 50.0
+	self.settings.RenderLen = 10.0
 	/*
 	   self.threads = []
 	   self.render_start = DoubleVar(master, 0)
@@ -150,8 +140,6 @@ func (self *ContextViewer) Init(master *gtk.Window, databaseFile *string) {
 	grid.Attach(status, 0, 4, 2, 1)
 
 	self.status = status
-
-	self.windowReady = true
 
 	if databaseFile != nil {
 		self.LoadFile(*databaseFile)
@@ -492,7 +480,7 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	// render grid + scrubber
 	self.Render()
 
-	self.renderStart = self.data.LogStart
+	self.settings.RenderStart = self.data.LogStart
 	self.Update() // the above should do this
 }
 
@@ -556,12 +544,12 @@ func (self *ContextViewer) GetLatestBookmarkBefore(endHint float64) float64 {
 }
 
 func (self *ContextViewer) EndEvent() {
-	self.renderStart = self.data.LogEnd - self.renderLen
+	self.settings.RenderStart = self.data.LogEnd - self.settings.RenderLen
 	// self.canvas.xview_moveto(0)
 }
 
 func (self *ContextViewer) NextEvent() {
-	ts := self.GetEarliestBookmarkAfter(self.renderStart)
+	ts := self.GetEarliestBookmarkAfter(self.settings.RenderStart)
 	if ts != 0.0 {
 		// self.render_start.set(ts)
 	}
@@ -569,7 +557,7 @@ func (self *ContextViewer) NextEvent() {
 }
 
 func (self *ContextViewer) PrevEvent() {
-	ts := self.GetLatestBookmarkBefore(self.renderStart)
+	ts := self.GetLatestBookmarkBefore(self.settings.RenderStart)
 	if ts != 0.0 {
 		// self.render_start.set(ts)
 	}
@@ -577,7 +565,7 @@ func (self *ContextViewer) PrevEvent() {
 }
 
 func (self *ContextViewer) StartEvent() {
-	self.renderStart = self.data.LogStart
+	self.settings.RenderStart = self.data.LogStart
 	// self.canvas.xview_moveto(0)
 }
 
@@ -624,15 +612,12 @@ func (self *ContextViewer) StartEvent() {
 */
 
 func (self *ContextViewer) Update() {
-	self.data.LoadEvents(self.renderStart, self.renderLen, self.coalesceThreshold, self.config.Gui.RenderCutoff, self.SetStatus)
+	self.data.LoadEvents(self.settings.RenderStart, self.settings.RenderLen, self.settings.Coalesce, self.config.Gui.RenderCutoff, self.SetStatus)
 	self.Render()
 }
 
 // Render settings changed, re-render with existing data
 func (self *ContextViewer) Render() {
-	if !self.windowReady {
-		return
-	}
 	self.RenderClear()
 	//self.RenderScrubber()
 	//self.RenderBase()
@@ -693,8 +678,8 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 	}
 
 	// view start / end / length
-	vi_s := self.renderStart
-	vi_e := self.renderStart + self.renderLen
+	vi_s := self.settings.RenderStart
+	vi_e := self.settings.RenderStart + self.settings.RenderLen
 	//vi_l := vi_e - vi_s
 
 	// scrubber width
@@ -744,14 +729,14 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	cr.SetSourceRGB(1, 1, 1)
 	cr.Paint()
 
-	_rl := self.renderLen
-	_sc := self.renderScale
+	_rl := self.settings.RenderLen
+	_sc := self.settings.RenderScale
 
 	rs_px := _rl * _sc
 	rl_px := _rl * _sc
 
 	//pangocairo_context := pangocairo.CairoContext(cr)
-	//layout := pangocairo_context.create_layout()
+	//layout := pangocairo_viewer.create_layout()
 	//layout.SetAlignment(pango.ALIGN_LEFT)
 	//layout.SetWrap(pango.WRAP_WORD_CHAR)
 	//layout.SetFontDescription(pango.FontDescription("Arial 10"))
@@ -768,8 +753,8 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 		//layout.SetText(label)
 		//layout.SetWidth(r[1][2] * pango.SCALE)
 		//cr.translate(r[1][0]+2, r[1][1]+1)
-		//pangocairo_context.UpdateLayout(layout)
-		//pangocairo_context.ShowLayout(layout)
+		//pangocairo_viewer.UpdateLayout(layout)
+		//pangocairo_viewer.ShowLayout(layout)
 		//cr.Translate(-r[1][0]-2, -r[1][1]-1)
 	}
 
@@ -786,13 +771,8 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 
 // add the event rectangles
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
-	if !self.windowReady {
-		// update() is called a couple of times during init()
-		return
-	}
-
-	_rs := self.renderStart
-	_rc := self.renderCutoff
+	_rs := self.settings.RenderStart
+	_rc := self.settings.Cutoff
 	_sc := 50.0 // self.scale
 
 	eventCount := len(self.data.Data) - 1
@@ -812,10 +792,10 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 				continue
 			}
 			shown += 1
-			//			if shown == 500 && VERSION.endswith("-demo") {
-			//				self.ShowError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
-			//				break
-			//			}
+			//if shown == 500 && VERSION.endswith("-demo") {
+			//	self.ShowError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
+			//	break
+			//}
 			self.ShowEvent(
 				cr,
 				&event, _rs, _sc,
@@ -838,7 +818,7 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 	self.SetStatus("")
 }
 
-func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *context.Event, offset_time, scale_factor float64, thread int) {
+func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
 	ok := event.EndType == "ENDOK"
 
 	start_px := (event.StartTime - offset_time) * scale_factor
@@ -849,11 +829,10 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *context.Event, of
 	//	   (event.StartTime - offset_time) * 1000,
 	//	   event.start_location, event.Text())
 
-	//outl := "#484" if ok else "#844"
 	if ok {
 		cr.SetSourceRGB(0.8, 1.0, 0.8)
 	} else {
-		cr.SetSourceRGB(0.8, 0.8, 1.0)
+		cr.SetSourceRGB(1.0, 0.8, 0.8)
 	}
 	cr.Rectangle(
 		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
@@ -891,7 +870,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *context.Event, of
 	*/
 }
 
-func (self *ContextViewer) ShowLock(cr *cairo.Context, event *context.Event, offset_time, scale_factor float64, thread int) {
+func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
 	start_px := (event.StartTime - offset_time) * scale_factor
 	length_px := event.Length() * scale_factor
 
