@@ -159,6 +159,8 @@ type ContextViewer struct {
 	bookmarks *gtk.ListStore
 	summary   []int
 	threads   []string
+	logStart  float64
+	logEnd    float64
 
 	// rendering
 	eventIdxOffset float64
@@ -680,6 +682,13 @@ func (self *ContextViewer) LoadSummary(conn *sqlite3.Conn) {
 		query.Scan(&val)
 		self.summary = append(self.summary, val)
 	}
+
+	// TODO: bake this into the .cbin
+	sql = "SELECT min(start_time), max(end_time) FROM events"
+	for query, err := conn.Query(sql); err == nil; err = query.Next() {
+		query.Scan(&self.logStart, &self.logEnd)
+		//fmt.Printf("Range: %d:%d", self.logStart, self.logEnd)
+	}
 }
 
 /*
@@ -943,11 +952,11 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 	cr.SetSourceRGB(0, 0, 0)
 
 	// events start / end / length
-	ev_s := self.GetEarliestBookmarkAfter(0.0)
-	ev_e := self.GetLatestBookmarkBefore(999999999999999999.9)
-	ev_l := ev_e - ev_s + 10 // TODO: don't add 10
+	ev_s := self.logStart
+	ev_e := self.logEnd
+	ev_l := ev_e - ev_s
 
-	if ev_l == 0 { // only one bookmark
+	if ev_l == 0 { // only one event in the log o_O?
 		return
 	}
 
@@ -1045,8 +1054,6 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 
 // add the event rectangles
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
-	fmt.Println("RenderData")
-
 	if !self.windowReady {
 		// update() is called a couple of times during init()
 		return
@@ -1253,7 +1260,7 @@ func main() {
 	cv.Init(win, filename)
 
 	// Set the default window size.
-	//	options.geometry
+	// TODO: options.geometry
 	win.SetDefaultSize(1000, 600)
 
 	// Recursively show all widgets contained in this window.
