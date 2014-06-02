@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	// gtk
 	"github.com/conformal/gotk3/glib"
 	//"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/gtk"
@@ -39,13 +40,13 @@ const (
 
 type ContextViewer struct {
 	// GUI
-	master      *gtk.Window
-	status      *gtk.Statusbar
-	configFile  string
-	config      viewer.Config
+	master     *gtk.Window
+	status     *gtk.Statusbar
+	configFile string
+	config     viewer.Config
 
 	// data
-	data viewer.Data
+	data     viewer.Data
 	settings viewer.DataSettings
 }
 
@@ -77,7 +78,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	       pass
 	*/
 	self.configFile = usr.HomeDir + "/.config/viewer.cfg"
-	self.settings.RenderScale = 50.0
+	self.settings.RenderScale = 500.0
 	self.settings.RenderLen = 10.0
 	self.settings.MaxDepth = 7
 
@@ -133,7 +134,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		fileMenu.Append(openButton)
 
 		// TODO: separator
-		
+
 		quitButton, _ := gtk.MenuItemNewWithLabel("Quit")
 		fileMenu.Append(quitButton)
 
@@ -154,16 +155,16 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 	menuBar.Append(viewButton)
 
 	/*
-	analyseButton, err := gtk.MenuItemNewWithLabel("Analyse")
-	analyseButton.SetSubmenu(func() *gtk.Menu {
-		analyseMenu, _ := gtk.MenuNew()
+		analyseButton, err := gtk.MenuItemNewWithLabel("Analyse")
+		analyseButton.SetSubmenu(func() *gtk.Menu {
+			analyseMenu, _ := gtk.MenuNew()
 
-		timeChartButton, _ := gtk.MenuItemNewWithLabel("Time Chart")
-		analyseMenu.Append(timeChartButton)
+			timeChartButton, _ := gtk.MenuItemNewWithLabel("Time Chart")
+			analyseMenu.Append(timeChartButton)
 
-		return analyseMenu
-	}())
-	menuBar.Append(analyseButton)
+			return analyseMenu
+		}())
+		menuBar.Append(analyseButton)
 	*/
 
 	helpButton, err := gtk.MenuItemNewWithLabel("Help")
@@ -187,22 +188,22 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 
 		docButton, _ := gtk.MenuItemNewWithLabel("Documentation")
 		/*
-		   t = Toplevel(master)
-		   t.title("Context Documentation")
-		   t.transient(master)
-		   scroll = Scrollbar(t, orient=VERTICAL)
-		   tx = Text(
-			   t,
-			   wrap=WORD,
-			   yscrollcommand=scroll.set,
-		   )
-		   scroll['command'] = tx.yview
-		   scroll.pack(side=RIGHT, fill=Y, expand=1)
-		   tx.pack(fill=BOTH, expand=1)
-		   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
-		   tx.configure(state="disabled")
-		   tx.focus_set()
-		   win_center(t)
+			   t = Toplevel(master)
+			   t.title("Context Documentation")
+			   t.transient(master)
+			   scroll = Scrollbar(t, orient=VERTICAL)
+			   tx = Text(
+				   t,
+				   wrap=WORD,
+				   yscrollcommand=scroll.set,
+			   )
+			   scroll['command'] = tx.yview
+			   scroll.pack(side=RIGHT, fill=Y, expand=1)
+			   tx.pack(fill=BOTH, expand=1)
+			   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
+			   tx.configure(state="disabled")
+			   tx.focus_set()
+			   win_center(t)
 		*/
 		helpMenu.Append(docButton)
 
@@ -212,7 +213,6 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 
 	return menuBar
 }
-
 
 func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid, err := gtk.GridNew()
@@ -344,33 +344,35 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	canvasScrollPane.SetSizeRequest(250, 200)
 
 	canvas, _ := gtk.DrawingAreaNew()
-	canvas.SetSizeRequest(2000, 20)
 	canvas.SetHExpand(true)
 	canvas.SetVExpand(true)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
+		width := int(self.settings.RenderScale * self.settings.RenderLen)
+		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.settings.MaxDepth)
+		widget.SetSizeRequest(width, height)
 		self.RenderBase(cr)
 		self.RenderData(cr)
 	})
-/*
-   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
-   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
+	/*
+	   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
+	   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
 
-   # in windows, mouse wheel events always go to the root window o_O
-   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
-       e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
-   ))
+	   # in windows, mouse wheel events always go to the root window o_O
+	   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
+	       e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
+	   ))
 
-   # Drag based movement
-   # def _sm(e):
-   #    self.st = self.render_start.get()
-   #    self.sx = e.x
-   #    self.sy = e.y
-   # def _cm(e):
-   #    self.render_start.set(self.st + float(self.sx - e.x)/self.scale.get())
-   #    self.render()
-   # self.canvas.bind("<1>", _sm)
-   # self.canvas.bind("<B1-Motion>", _cm)
-*/
+	   # Drag based movement
+	   # def _sm(e):
+	   #    self.st = self.render_start.get()
+	   #    self.sx = e.x
+	   #    self.sy = e.y
+	   # def _cm(e):
+	   #    self.render_start.set(self.st + float(self.sx - e.x)/self.scale.get())
+	   #    self.render()
+	   # self.canvas.bind("<1>", _sm)
+	   # self.canvas.bind("<B1-Motion>", _cm)
+	*/
 
 	canvasScrollPane.Add(canvas)
 	grid.Add(canvasScrollPane)
@@ -384,18 +386,25 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetSizeRequest(200, SCRUBBER_HEIGHT)
 	canvas.SetHExpand(true)
+	//canvas.Connect("size-allocate", func(widget *gtk.DrawingArea, alloc *gtk.Allocation) {
+	//})
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
-		self.RenderScrubber(cr)
+		//GtkAllocation* alloc = g_new(GtkAllocation, 1);
+		//gtk_widget_get_allocation(widget, alloc);
+		//printf("widget size is currently %dx%d\n",alloc->width, alloc->height);
+		//g_free(alloc);
+		//width, _ := widget.GetSizeRequest()
+		self.RenderScrubber(cr, 500.0)
 	})
 	canvas.Connect("button-press-event", func() {
 		log.Println("Nav: scrubbing to")
-/*
-       width_fraction = float(e.x) / sc.winfo_width()
-       ev_s = self.get_earliest_bookmark_after(0)
-       ev_e = self.get_latest_bookmark_before(sys.maxint)
-       ev_l = ev_e - ev_s
-       self.GoTo(ev_s + ev_l * width_fraction - float(self.render_len.get()) / 2)
-*/
+		/*
+		   width_fraction = float(e.x) / sc.winfo_width()
+		   ev_s = self.get_earliest_bookmark_after(0)
+		   ev_e = self.get_latest_bookmark_before(sys.maxint)
+		   ev_l = ev_e - ev_s
+		   self.GoTo(ev_s + ev_l * width_fraction - float(self.render_len.get()) / 2)
+		*/
 	})
 	grid.Add(canvas)
 
@@ -418,6 +427,7 @@ func (self *ContextViewer) ShowError(title, text string) {
 func (self *ContextViewer) GoTo(ts float64) {
 	if ts >= self.data.LogStart && ts <= self.data.LogEnd {
 		self.settings.RenderStart = ts
+		self.Update()
 		// self.canvas.xview_moveto(0)
 	}
 }
@@ -459,11 +469,7 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	// load the data
 	self.master.SetTitle(NAME + ": " + databaseFile)
 
-	// render grid + scrubber
-	self.Render()
-
-	self.settings.RenderStart = self.data.LogStart
-	self.Update() // the above should do this
+	self.GoTo(self.data.LogStart)
 }
 
 /*
@@ -510,40 +516,9 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 
 func (self *ContextViewer) Update() {
 	self.data.LoadEvents(self.settings.RenderStart, self.settings.RenderLen, self.settings.Coalesce, self.config.Gui.RenderCutoff, self.SetStatus)
-	self.Render()
 }
 
-// Render settings changed, re-render with existing data
-func (self *ContextViewer) Render() {
-	self.RenderClear()
-	//self.RenderScrubber()
-	//self.RenderBase()
-	//self.RenderData()
-}
-
-// clear the canvas and any cached variables
-func (self *ContextViewer) RenderClear() {
-	/*
-	   self.canvas.delete(ALL)
-	   self.original_texts = {}
-	   self.tooltips = {}
-	   self.canvas.configure(scrollregion=(
-	       0, 0,
-	       self.render_len.get() * self.scale.get(),
-	       len(self.threads) * (MAX_DEPTH * BLOCK_HEIGHT) + HEADER_HEIGHT
-	   ))
-	   if self.char_w == -1:
-	       t = self.canvas.create_text(0, 0, font="TkFixedFont", text="_", anchor=NW)
-	       bb = self.canvas.bbox(t)
-	       # [2]-[0]=10, but trying by hand, 8px looks better on win7
-	       # 7px looks right on linux, not sure what [2]-[0] is there,
-	       # hopefully 9px, so "-2" always helps?
-	       self.char_w = bb[2] - bb[0] - 2
-	       self.canvas.delete(t)
-	*/
-}
-
-func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
+func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	cr.SetSourceRGB(1, 1, 1)
 	cr.Paint()
 
@@ -554,71 +529,47 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 		}
 	}
 
-	width := 500.0 // TODO: get from canvas / widget
 	length := float64(len(self.data.Summary))
 	for n, el := range self.data.Summary {
-		frac := float64(el) / float64(activityPeak)
-		cr.SetSourceRGB(frac, 1.0-frac, 0.0)
+		fraction := float64(el) / float64(activityPeak)
+		cr.SetSourceRGB(fraction, 1.0-fraction, 0.0)
 		cr.Rectangle(float64(n)/length*width, 0, width/length, SCRUBBER_HEIGHT)
 		cr.Fill()
 	}
 
 	cr.SetSourceRGB(0, 0, 0)
 
-	// events start / end / length
-	ev_s := self.data.LogStart
-	ev_e := self.data.LogEnd
-	ev_l := ev_e - ev_s
-
-	if ev_l == 0 { // only one event in the log o_O?
+	if self.data.LogEnd == self.data.LogStart { // only one event in the log o_O?
 		return
 	}
 
-	// view start / end / length
-	vi_s := self.settings.RenderStart
-	vi_e := self.settings.RenderStart + self.settings.RenderLen
-	//vi_l := vi_e - vi_s
-
-	// scrubber width
-	sc_w := width
+	LogLength := self.data.LogEnd - self.data.LogStart
 
 	// arrow
-	start_rel := vi_s - ev_s
-	start := (start_rel / ev_l) * sc_w
+	start_rel := self.settings.RenderStart - self.data.LogStart
+	start := (start_rel / LogLength) * width
 
-	end_rel := vi_e - ev_s
-	end := (end_rel / ev_l) * sc_w
+	end_rel := (self.settings.RenderStart + self.settings.RenderLen) - self.data.LogStart
+	end := (end_rel / LogLength) * width
+
+	line := func(x1, y1, x2, y2 float64) {
+		cr.MoveTo(x1, y1)
+		cr.LineTo(x2, y2)
+		cr.Stroke()
+	}
 
 	// left edge
-	cr.MoveTo(start, 1)
-	cr.LineTo(start, SCRUBBER_HEIGHT)
-	cr.Stroke()
-
-	cr.MoveTo(start, SCRUBBER_HEIGHT/2)
-	cr.LineTo(start+5, 15)
-	cr.Stroke()
-
-	cr.MoveTo(start, SCRUBBER_HEIGHT/2)
-	cr.LineTo(start+5, 5)
-	cr.Stroke()
+	line(start, 1, start, SCRUBBER_HEIGHT)
+	line(start, SCRUBBER_HEIGHT/2, start+5, 15)
+	line(start, SCRUBBER_HEIGHT/2, start+5, 5)
 
 	// right edge
-	cr.MoveTo(end, 1)
-	cr.LineTo(end, SCRUBBER_HEIGHT)
-	cr.Stroke()
-
-	cr.MoveTo(end, SCRUBBER_HEIGHT/2)
-	cr.LineTo(end-5, 15)
-	cr.Stroke()
-
-	cr.MoveTo(end, SCRUBBER_HEIGHT/2)
-	cr.LineTo(end-5, 5)
-	cr.Stroke()
+	line(end, 1, end, SCRUBBER_HEIGHT)
+	line(end, SCRUBBER_HEIGHT/2, end-5, 15)
+	line(end, SCRUBBER_HEIGHT/2, end-5, 5)
 
 	// join
-	cr.MoveTo(start, SCRUBBER_HEIGHT/2)
-	cr.LineTo(end, SCRUBBER_HEIGHT/2)
-	cr.Stroke()
+	line(start, SCRUBBER_HEIGHT/2, end, SCRUBBER_HEIGHT/2)
 }
 
 func (self *ContextViewer) RenderBase(cr *cairo.Context) {
