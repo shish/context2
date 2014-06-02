@@ -19,7 +19,7 @@ import (
 */
 
 type Data struct {
-	Conn      *sqlite3.Conn
+	conn      *sqlite3.Conn
 	Data      []Event
 	Bookmarks *gtk.ListStore
 	Summary   []int
@@ -104,11 +104,11 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 		}
 	}
 
-	if self.Conn != nil {
-		self.Conn.Close()
-		self.Conn = nil
+	if self.conn != nil {
+		self.conn.Close()
+		self.conn = nil
 	}
-	self.Conn, _ = sqlite3.Open(databaseFile)
+	self.conn, _ = sqlite3.Open(databaseFile)
 
 	self.Data = []Event{} // don't load the bulk of the data yet
 	self.LoadBookmarks()
@@ -146,7 +146,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 		AND (end_time - start_time) * 1000 >= ?
 		ORDER BY start_time ASC, end_time DESC
 	`
-	for query, err := self.Conn.Query(sql, s-self.LogStart, e-self.LogStart, renderCutoff); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, renderCutoff); err == nil; err = query.Next() {
 		var event Event
 		event.NewEvent(query)
 		thread_idx := event.ThreadID // TODO: index into currently-active Threads, not all Threads
@@ -176,6 +176,8 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 			self.Data = append(self.Data, event)
 		}
 	}
+
+	log.Println("Loading: done")
 }
 
 func (self *Data) LoadBookmarks() {
@@ -184,7 +186,7 @@ func (self *Data) LoadBookmarks() {
 	self.Bookmarks.Clear()
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
-	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
 		var startTime float64
 		var startText, endText string
 		query.Scan(&startTime, &startText, &endText)
@@ -201,7 +203,7 @@ func (self *Data) LoadThreads() {
 	self.Threads = make([]string, 0, 10)
 
 	sql := "SELECT node, process, thread FROM threads ORDER BY id"
-	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
 		var node, process, thread string
 		query.Scan(&node, &process, &thread)
 		self.Threads = append(self.Threads, fmt.Sprintf("%s-%s-%s", node, process, thread))
@@ -214,14 +216,14 @@ func (self *Data) LoadSummary() {
 	self.Summary = make([]int, 0, 1000)
 
 	sql := "SELECT events FROM summary ORDER BY id"
-	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
 		var val int
 		query.Scan(&val)
 		self.Summary = append(self.Summary, val)
 	}
 
 	sql = "SELECT start_time, end_time FROM settings"
-	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
 		query.Scan(&self.LogStart, &self.LogEnd)
 	}
 }
@@ -229,7 +231,7 @@ func (self *Data) LoadSummary() {
 func (self *Data) GetEarliestBookmarkAfter(startHint float64) float64 {
 	var startTime float64
 	sql := "SELECT min(start_time) FROM events WHERE start_time > ? AND start_type = 'BMARK'"
-	for query, err := self.Conn.Query(sql, startHint); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql, startHint); err == nil; err = query.Next() {
 		query.Scan(&startTime)
 	}
 	return startTime
@@ -238,7 +240,7 @@ func (self *Data) GetEarliestBookmarkAfter(startHint float64) float64 {
 func (self *Data) GetLatestBookmarkBefore(endHint float64) float64 {
 	var endTime float64
 	sql := "SELECT max(start_time) FROM events WHERE start_time < ? AND start_type = 'BMARK'"
-	for query, err := self.Conn.Query(sql, endHint); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql, endHint); err == nil; err = query.Next() {
 		query.Scan(&endTime)
 	}
 	return endTime
