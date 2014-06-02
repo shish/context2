@@ -1,26 +1,17 @@
 package main
 
 import (
-	//"bufio"
-	"bufio"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
-	"time"
-	//"strconv"
-	"strings"
-	//"time"
-	//"runtime/pprof"
-	"code.google.com/p/go-sqlite/go1/sqlite3"
-	//ctx "github.com/shish/context-apis/go/context"
 	"code.google.com/p/gcfg"
 	"github.com/conformal/gotk3/glib"
 	"github.com/conformal/gotk3/gtk"
 	"github.com/shish/gotk3/cairo"
 	//"github.com/conformal/gotk3/pango"
+	"./context"
 )
 
 const (
@@ -40,281 +31,6 @@ const (
 //    NAME += ": Non-commercial / Evaluation Version"
 
 //os.environ["PATH"] = os.environ.get("PATH", "") + ":%s" % os.path.dirname(sys.argv[0])
-
-/*
-   #########################################################################
-   # Event
-   #########################################################################
-*/
-type Event struct {
-	id             int
-	thread_id      int
-	start_location string
-	end_location   string
-	start_time     float64
-	end_time       float64
-	start_type     string
-	end_type       string
-	start_text     string
-	end_text       string
-	count          int
-	depth          int
-}
-
-func (self *Event) NewEvent(query *sqlite3.Stmt) {
-	query.Scan(
-		&self.id,
-		&self.thread_id,
-		&self.start_location, &self.end_location,
-		&self.start_time, &self.end_time,
-		&self.start_type, &self.end_type,
-		&self.start_text, &self.end_text,
-	)
-
-	self.count = 1
-	self.depth = 0
-}
-
-func (self *Event) CanMerge(other Event, threshold float64) bool {
-	return (other.depth == self.depth &&
-		other.thread_id == self.thread_id &&
-		other.start_time-self.end_time < 0.001 &&
-		other.Length() < threshold &&
-		other.start_text == self.start_text)
-}
-
-func (self *Event) Merge(other Event) {
-	self.end_time = other.end_time
-	self.count += 1
-}
-
-func (self *Event) Text() string {
-	var text string
-
-	if self.start_text == self.end_text || self.end_text == "" {
-		text = self.start_text
-	} else {
-		text = self.start_text + "\n" + self.end_text
-	}
-
-	if self.count > 1 {
-		text = fmt.Sprintf("%d x %s", self.count, text)
-	}
-
-	return text
-}
-
-func (self *Event) Length() float64 {
-	return self.end_time - self.start_time
-}
-
-/*
-   #########################################################################
-   # Database
-   #########################################################################
-*/
-
-type ContextData struct {
-	conn      *sqlite3.Conn
-	data      []Event
-	bookmarks *gtk.ListStore
-	summary   []int
-	threads   []string
-	logStart  float64
-	logEnd    float64
-}
-
-func VersionCheck(databaseFile string) bool {
-	db, _ := sqlite3.Open(databaseFile)
-	defer db.Close()
-
-	query, err := db.Query("SELECT version FROM settings LIMIT 1")
-	if err != nil {
-		fmt.Printf("Error getting version query: %s\n", err)
-		return false
-	}
-
-	var version int
-	err = query.Scan(&version)
-	if err != nil {
-		fmt.Printf("Error getting version row: %s\n", err)
-		return false
-	}
-	if version != 1 {
-		fmt.Printf("Version too old: %d\n", version)
-		return false
-	}
-
-	return true
-}
-
-func (self *ContextData) LoadFile(givenFile string, setStatus func(string)) (string, error) {
-	/*
-	   path, _ext = os.path.splitext(givenFile)
-	*/
-	path := strings.Split(givenFile, ".")[0]
-	logFile := path + ".ctxt"
-	databaseFile := path + ".cbin"
-
-	logStat, err := os.Stat(logFile)
-	if err != nil {
-		return "", err
-	}
-
-	// if the user picked a log file, compile it (unless an
-	// up-to-date version already exists)
-	if givenFile == logFile {
-		needsRecompile := false
-
-		databaseStat, err := os.Stat(databaseFile)
-
-		if err != nil {
-			needsRecompile = true
-			setStatus("Compiled log not found, compiling")
-		} else if logStat.ModTime().UnixNano() > databaseStat.ModTime().UnixNano() {
-			needsRecompile = true
-			setStatus("Compiled log is out of date, recompiling")
-		} else if !VersionCheck(databaseFile) {
-			needsRecompile = true
-			setStatus("Compiled log is from an old version of context, recompiling")
-		}
-
-		if needsRecompile {
-			compiler := exec.Command("context-compiler", logFile)
-			pipe, _ := compiler.StdoutPipe()
-			reader := bufio.NewScanner(pipe)
-			compiler.Start()
-
-			for reader.Scan() {
-				line := reader.Text()
-				if line != "" {
-					setStatus(strings.Trim(line, "\n\r"))
-				} else {
-					break
-				}
-			}
-		}
-	}
-
-	if self.conn != nil {
-		self.conn.Close()
-		self.conn = nil
-	}
-	self.conn, _ = sqlite3.Open(databaseFile)
-
-	self.data = []Event{} // don't load the bulk of the data yet
-	// self.LoadEvents()
-	self.LoadBookmarks()
-	self.LoadSummary()
-	self.LoadThreads()
-
-	return databaseFile, nil
-}
-
-func (self *ContextData) LoadEvents(settings *ContextViewer, gui *ContextViewer) {
-	defer gui.SetStatus("")
-	s := settings.renderStart
-	e := settings.renderStart + settings.renderLen
-	threshold := float64(settings.coalesceThreshold) / 1000.0
-	self.data = []Event{} // free memory
-	threadLevelEnds := make([][]Event, len(self.threads))
-
-	/*
-			n = 0
-		   	func progress() {
-		   		n++
-		   		self.SetStatus("Loading... (%dk opcodes)" % (self.n * 10))
-		   		return 0  // non-zero = cancel query
-		   	}
-		   	self.c.set_progress_handler(progress, 10000)
-		       defer self.c.set_progress_handler(None, 0)
-	*/
-
-	sql := `
-		SELECT *
-		FROM events
-		WHERE id IN (SELECT id FROM events_index WHERE end_time > ? AND start_time < ?)
-		AND (end_time - start_time) * 1000 >= ?
-		ORDER BY start_time ASC, end_time DESC
-	`
-	for query, err := self.conn.Query(sql, s-settings.eventIdxOffset, e-settings.eventIdxOffset, settings.config.Gui.RenderCutoff); err == nil; err = query.Next() {
-		var event Event
-		event.NewEvent(query)
-		thread_idx := event.thread_id // TODO: index into currently-active threads, not all threads
-
-		if event.start_type == "START" {
-			var prevEventAtLevel *Event
-			endIdx := len(threadLevelEnds[thread_idx]) - 1
-			for len(threadLevelEnds[thread_idx]) > 0 && threadLevelEnds[thread_idx][endIdx].end_time <= event.start_time {
-				threadLevelEnds[thread_idx], prevEventAtLevel = threadLevelEnds[thread_idx][:endIdx], &threadLevelEnds[thread_idx][endIdx]
-			}
-			event.depth = len(threadLevelEnds[thread_idx])
-
-			self.data = append(self.data, event)
-			if false {
-				fmt.Printf("%s %s\n", prevEventAtLevel, threshold)
-			}
-
-			/*
-				if threshold > 0.0 &&
-					prevEventAtLevel != nil &&
-					prevEventAtLevel.CanMerge(event, threshold) {
-					prevEventAtLevel.Merge(event)
-					threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
-				} else {
-					threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], event)
-					self.data = append(self.data, event)
-				}
-			*/
-		} else {
-			self.data = append(self.data, event)
-		}
-	}
-}
-
-func (self *ContextData) LoadBookmarks() {
-	self.bookmarks.Clear()
-
-	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		var startTime float64
-		var startText, endText string
-		query.Scan(&startTime, &startText, &endText)
-
-		itemPtr := self.bookmarks.Append()
-		text := fmt.Sprintf("%19.19s: %s", time.Unix(int64(startTime), 0), startText)
-		self.bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{startTime, text})
-	}
-}
-
-func (self *ContextData) LoadThreads() {
-	self.threads = make([]string, 0, 10)
-
-	sql := "SELECT node, process, thread FROM threads ORDER BY id"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		var node, process, thread string
-		query.Scan(&node, &process, &thread)
-		self.threads = append(self.threads, fmt.Sprintf("%s-%s-%s", node, process, thread))
-	}
-}
-
-func (self *ContextData) LoadSummary() {
-	self.summary = make([]int, 0, 1000)
-
-	sql := "SELECT events FROM summary ORDER BY id"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		var val int
-		query.Scan(&val)
-		self.summary = append(self.summary, val)
-	}
-
-	// TODO: bake this into the .cbin
-	sql = "SELECT min(start_time), max(end_time) FROM events"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		query.Scan(&self.logStart, &self.logEnd)
-		//fmt.Printf("Range: %d:%d", self.logStart, self.logEnd)
-	}
-}
 
 /*
    #########################################################################
@@ -349,7 +65,7 @@ type ContextViewer struct {
 	windowReady bool
 
 	// data
-	data ContextData
+	data context.Data
 
 	// rendering
 	eventIdxOffset    float64
@@ -596,11 +312,11 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 func (self *ContextViewer) __bookmarks() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
-	self.data.bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
+	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
 	bookmarkScroller, _ := gtk.ScrolledWindowNew(nil, nil)
 	bookmarkScroller.SetSizeRequest(250, 200)
-	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.bookmarks)
+	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.Bookmarks)
 	bookmarkView.SetVExpand(true)
 	bookmarkScroller.Add(bookmarkView)
 	grid.Attach(bookmarkScroller, 0, 0, 5, 1)
@@ -776,10 +492,7 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	// render grid + scrubber
 	self.Render()
 
-	self.eventIdxOffset = self.GetEarliestBookmarkAfter(0)
-
-	//	self.renderStart.set(self.eventIdxOffset)
-	self.renderStart = self.eventIdxOffset
+	self.renderStart = self.data.LogStart
 	self.Update() // the above should do this
 }
 
@@ -827,7 +540,7 @@ func (self *ContextViewer) SaveSettingsAndQuit() {
 func (self *ContextViewer) GetEarliestBookmarkAfter(startHint float64) float64 {
 	var startTime float64
 	sql := "SELECT min(start_time) FROM events WHERE start_time > ? AND start_type = 'BMARK'"
-	for query, err := self.data.conn.Query(sql, startHint); err == nil; err = query.Next() {
+	for query, err := self.data.Conn.Query(sql, startHint); err == nil; err = query.Next() {
 		query.Scan(&startTime)
 	}
 	return startTime
@@ -836,14 +549,14 @@ func (self *ContextViewer) GetEarliestBookmarkAfter(startHint float64) float64 {
 func (self *ContextViewer) GetLatestBookmarkBefore(endHint float64) float64 {
 	var endTime float64
 	sql := "SELECT max(start_time) FROM events WHERE start_time < ? AND start_type = 'BMARK'"
-	for query, err := self.data.conn.Query(sql, endHint); err == nil; err = query.Next() {
+	for query, err := self.data.Conn.Query(sql, endHint); err == nil; err = query.Next() {
 		query.Scan(&endTime)
 	}
 	return endTime
 }
 
 func (self *ContextViewer) EndEvent() {
-	self.renderStart = self.data.logEnd - self.renderLen
+	self.renderStart = self.data.LogEnd - self.renderLen
 	// self.canvas.xview_moveto(0)
 }
 
@@ -864,7 +577,7 @@ func (self *ContextViewer) PrevEvent() {
 }
 
 func (self *ContextViewer) StartEvent() {
-	self.renderStart = self.data.logStart
+	self.renderStart = self.data.LogStart
 	// self.canvas.xview_moveto(0)
 }
 
@@ -911,7 +624,7 @@ func (self *ContextViewer) StartEvent() {
 */
 
 func (self *ContextViewer) Update() {
-	self.data.LoadEvents(self, self)
+	self.data.LoadEvents(self.renderStart, self.renderLen, self.coalesceThreshold, self.config.Gui.RenderCutoff, self.SetStatus)
 	self.Render()
 }
 
@@ -953,15 +666,15 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 	cr.Paint()
 
 	activityPeak := 0
-	for _, el := range self.data.summary {
+	for _, el := range self.data.Summary {
 		if el > activityPeak {
 			activityPeak = el
 		}
 	}
 
 	width := 500.0 // TODO: get from canvas / widget
-	length := float64(len(self.data.summary))
-	for n, el := range self.data.summary {
+	length := float64(len(self.data.Summary))
+	for n, el := range self.data.Summary {
 		frac := float64(el) / float64(activityPeak)
 		cr.SetSourceRGB(frac, 1.0-frac, 0.0)
 		cr.Rectangle(float64(n)/length*width, 0, width/length, SCRUBBER_HEIGHT)
@@ -971,8 +684,8 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 	cr.SetSourceRGB(0, 0, 0)
 
 	// events start / end / length
-	ev_s := self.data.logStart
-	ev_e := self.data.logEnd
+	ev_s := self.data.LogStart
+	ev_e := self.data.LogEnd
 	ev_l := ev_e - ev_s
 
 	if ev_l == 0 { // only one event in the log o_O?
@@ -1047,7 +760,7 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	cr.SetLineWidth(1.0)
 	for n := rs_px; n < rs_px+rl_px; n += 100 {
 		cr.MoveTo(n-rs_px, 0)
-		cr.LineTo(n-rs_px, float64(HEADER_HEIGHT+len(self.data.threads)*MAX_DEPTH*BLOCK_HEIGHT))
+		cr.LineTo(n-rs_px, float64(HEADER_HEIGHT+len(self.data.Threads)*MAX_DEPTH*BLOCK_HEIGHT))
 		cr.Stroke()
 
 		//label := fmt.Sprintf(" +%.4f", float64(n) / _sc - _rl)
@@ -1062,7 +775,7 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 
 	cr.SetSourceRGB(0.75, 0.75, 0.75) // #CCC
 	cr.SetLineWidth(1.0)
-	for n, _ := range self.data.threads {
+	for n, _ := range self.data.Threads {
 		cr.MoveTo(0, float64(HEADER_HEIGHT+MAX_DEPTH*BLOCK_HEIGHT*n))
 		cr.LineTo(rl_px, float64(HEADER_HEIGHT+MAX_DEPTH*BLOCK_HEIGHT*n))
 		cr.Stroke()
@@ -1082,20 +795,20 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 	_rc := self.renderCutoff
 	_sc := 50.0 // self.scale
 
-	eventCount := len(self.data.data) - 1
+	eventCount := len(self.data.Data) - 1
 	shown := 0
-	for n, event := range self.data.data {
+	for n, event := range self.data.Data {
 		if n%1000 == 0 || n == eventCount {
 			self.SetStatus(fmt.Sprintf("Rendered %d events (%.0f%%)", n, float64(n)*100.0/float64(eventCount)))
 			//self.master.update()
 		}
-		thread_idx := event.thread_id
+		thread_idx := event.ThreadID
 
-		if event.start_type == "START" {
-			if (event.end_time-event.start_time)*1000 < _rc {
+		if event.StartType == "START" {
+			if (event.EndTime-event.StartTime)*1000 < _rc {
 				continue
 			}
-			if event.depth >= MAX_DEPTH {
+			if event.Depth >= MAX_DEPTH {
 				continue
 			}
 			shown += 1
@@ -1108,12 +821,12 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 				&event, _rs, _sc,
 				thread_idx,
 			)
-		} else if event.start_type == "BMARK" {
+		} else if event.StartType == "BMARK" {
 			// note that when loading data, we currently filter for # "start_type=START" for a massive indexed speed boost
 			// so there are no bookmarks. We may want to load bookmarks
 			// into a separate array?
 			//pass  // render bookmark
-		} else if event.start_type == "LOCKW" || event.start_type == "LOCKA" {
+		} else if event.StartType == "LOCKW" || event.StartType == "LOCKA" {
 			self.ShowLock(
 				cr,
 				&event, _rs, _sc,
@@ -1125,15 +838,15 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 	self.SetStatus("")
 }
 
-func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *Event, offset_time, scale_factor float64, thread int) {
-	ok := event.end_type == "ENDOK"
+func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *context.Event, offset_time, scale_factor float64, thread int) {
+	ok := event.EndType == "ENDOK"
 
-	start_px := (event.start_time - offset_time) * scale_factor
+	start_px := (event.StartTime - offset_time) * scale_factor
 	length_px := event.Length() * scale_factor
 
 	//	tip := fmt.Sprintf("%dms @%dms: %s\n%s",
-	//	   (event.end_time - event.start_time) * 1000,
-	//	   (event.start_time - offset_time) * 1000,
+	//	   (event.EndTime - event.StartTime) * 1000,
+	//	   (event.StartTime - offset_time) * 1000,
 	//	   event.start_location, event.Text())
 
 	//outl := "#484" if ok else "#844"
@@ -1143,7 +856,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *Event, offset_tim
 		cr.SetSourceRGB(0.8, 0.8, 1.0)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
 		length_px, BLOCK_HEIGHT,
 	)
 	cr.Fill()
@@ -1154,13 +867,13 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *Event, offset_tim
 		cr.SetSourceRGB(0.5, 0.3, 0.3)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
 		length_px, BLOCK_HEIGHT,
 	)
 	cr.Stroke()
 	/*
 		t = self.canvas.create_text(
-		   start_px, HEADER_HEIGHT + thread * MAX_DEPTH * BLOCK_HEIGHT + event.depth * BLOCK_HEIGHT + 3,
+		   start_px, HEADER_HEIGHT + thread * MAX_DEPTH * BLOCK_HEIGHT + event.Depth * BLOCK_HEIGHT + 3,
 		   text=self.truncate_text(" " + event.text, length_px), tags="event event_label", anchor=NW, width=length_px,
 		   font="TkFixedFont",
 		   state="disabled",
@@ -1178,12 +891,12 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *Event, offset_tim
 	*/
 }
 
-func (self *ContextViewer) ShowLock(cr *cairo.Context, event *Event, offset_time, scale_factor float64, thread int) {
-	start_px := (event.start_time - offset_time) * scale_factor
+func (self *ContextViewer) ShowLock(cr *cairo.Context, event *context.Event, offset_time, scale_factor float64, thread int) {
+	start_px := (event.StartTime - offset_time) * scale_factor
 	length_px := event.Length() * scale_factor
 
-	// fill = "#FDD" if event.start_type == "LOCKW" else "#DDF"
-	if event.start_type == "LOCKW" {
+	// fill = "#FDD" if event.StartType == "LOCKW" else "#DDF"
+	if event.StartType == "LOCKW" {
 		cr.SetSourceRGB(1.0, 0.85, 0.85)
 	} else {
 		cr.SetSourceRGB(0.85, 0.85, 1.0)
