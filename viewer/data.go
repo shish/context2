@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"bufio"
 	"time"
+	"log"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	"github.com/conformal/gotk3/gtk"
 )
@@ -28,6 +29,7 @@ type Data struct {
 }
 
 func VersionCheck(databaseFile string) bool {
+	log.Println("Checking database version")
 	db, _ := sqlite3.Open(databaseFile)
 	defer db.Close()
 
@@ -43,7 +45,7 @@ func VersionCheck(databaseFile string) bool {
 		fmt.Printf("Error getting version row: %s\n", err)
 		return false
 	}
-	if version != 1 {
+	if version != 2 {
 		fmt.Printf("Version too old: %d\n", version)
 		return false
 	}
@@ -52,6 +54,8 @@ func VersionCheck(databaseFile string) bool {
 }
 
 func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, error) {
+	log.Println("Loading file", givenFile)
+
 	/*
 	   path, _ext = os.path.splitext(givenFile)
 	*/
@@ -83,6 +87,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 		}
 
 		if needsRecompile {
+			log.Println("Recompiling")
 			compiler := exec.Command("context-compiler", logFile)
 			pipe, _ := compiler.StdoutPipe()
 			reader := bufio.NewScanner(pipe)
@@ -115,6 +120,8 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 }
 
 func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, renderCutoff int, setStatus func(string)) {
+	log.Println("Loading events")
+
 	defer setStatus("")
 	s := renderStart
 	e := renderStart + renderLen
@@ -173,6 +180,8 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 }
 
 func (self *Data) LoadBookmarks() {
+	log.Println("Loading bookmarks")
+
 	self.Bookmarks.Clear()
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
@@ -188,9 +197,11 @@ func (self *Data) LoadBookmarks() {
 }
 
 func (self *Data) LoadThreads() {
+	log.Println("Loading threads")
+
 	self.Threads = make([]string, 0, 10)
 
-	sql := "SELECT node, process, thread FROM Threads ORDER BY id"
+	sql := "SELECT node, process, thread FROM threads ORDER BY id"
 	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
 		var node, process, thread string
 		query.Scan(&node, &process, &thread)
@@ -199,19 +210,19 @@ func (self *Data) LoadThreads() {
 }
 
 func (self *Data) LoadSummary() {
+	log.Println("Loading summary")
+
 	self.Summary = make([]int, 0, 1000)
 
-	sql := "SELECT events FROM Summary ORDER BY id"
+	sql := "SELECT events FROM summary ORDER BY id"
 	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
 		var val int
 		query.Scan(&val)
 		self.Summary = append(self.Summary, val)
 	}
 
-	// TODO: bake this into the .cbin
-	sql = "SELECT min(start_time), max(end_time) FROM events"
+	sql = "SELECT start_time, end_time FROM settings"
 	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
 		query.Scan(&self.LogStart, &self.LogEnd)
-		//fmt.Printf("Range: %d:%d", self.LogStart, self.LogEnd)
 	}
 }

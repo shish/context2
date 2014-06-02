@@ -44,17 +44,6 @@ func createTables(db *sqlite3.Conn) {
             thread varchar(32) not null
         );
     `)
-	db.Exec(`
-        CREATE TABLE IF NOT EXISTS summary(
-            id integer not null,
-			events integer not null
-        );
-    `)
-	db.Exec(`
-        CREATE TABLE IF NOT EXISTS settings(
-            version integer not null
-        );
-    `)
 }
 
 func progressFile(logFile string, lines chan string) {
@@ -238,6 +227,12 @@ func compileLog(logFile string, databaseFile string) {
 
 	set_status("Writing summary...")
 
+	db.Exec(`
+        CREATE TABLE IF NOT EXISTS summary(
+            id integer not null,
+			events integer not null
+        );
+    `)
 	for idx, events := range summary {
 		db.Exec(`
             INSERT INTO summary(id, events)
@@ -266,9 +261,16 @@ func compileLog(logFile string, databaseFile string) {
 	set_status("Writing settings...")
 
 	db.Exec(`
-		INSERT INTO settings(version)
-		VALUES(?)
-	`, 1)
+        CREATE TABLE IF NOT EXISTS settings(
+            version integer not null,
+            start_time float not null,
+            end_time float not null
+        );
+    `)
+	db.Exec(`
+		INSERT INTO settings(version, start_time, end_time)
+		VALUES(?, ?, ?)
+	`, 2, firstEventStart, lastEventEnd)
 
 	db.Commit()
 	db.Close()

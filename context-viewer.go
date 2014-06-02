@@ -67,8 +67,19 @@ type ContextViewer struct {
 	settings viewer.DataSettings
 }
 
-func (self *ContextViewer) Init(master *gtk.Window, databaseFile *string) {
+func (self *ContextViewer) Init(databaseFile *string) {
 	usr, _ := user.Current()
+
+	master, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
+	if err != nil {
+		log.Fatal("Unable to create window:", err)
+	}
+
+	master.SetTitle(NAME)
+	// Set the default window size.
+	// TODO: options.geometry
+	master.SetDefaultSize(1000, 600)
+	//	set_icon(root, "images/tools-icon")
 
 	self.master = master
 	/*
@@ -140,6 +151,9 @@ func (self *ContextViewer) Init(master *gtk.Window, databaseFile *string) {
 	grid.Attach(status, 0, 4, 2, 1)
 
 	self.status = status
+
+	// Recursively show all widgets contained in this window.
+	master.ShowAll()
 
 	if databaseFile != nil {
 		self.LoadFile(*databaseFile)
@@ -959,23 +973,9 @@ func main() {
 	}
 
 	gtk.Init(nil)
-	win, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
-	if err != nil {
-		log.Fatal("Unable to create window:", err)
-	}
-
-	win.SetTitle(NAME)
-	//	set_icon(root, "images/tools-icon")
 
 	cv := ContextViewer{}
-	cv.Init(win, filename)
-
-	// Set the default window size.
-	// TODO: options.geometry
-	win.SetDefaultSize(1000, 600)
-
-	// Recursively show all widgets contained in this window.
-	win.ShowAll()
+	cv.Init(filename)
 
 	// Begin executing the GTK main loop.  This blocks until
 	// gtk.MainQuit() is run.
