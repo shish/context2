@@ -125,101 +125,94 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		log.Fatal("Unable to create label:", err)
 	}
 
-	menu, err := gtk.MenuNew()
-	menuBar.Add(menu)
+	fileButton, err := gtk.MenuItemNewWithLabel("File")
+	fileButton.SetSubmenu(func() *gtk.Menu {
+		fileMenu, _ := gtk.MenuNew()
 
-	item, err := gtk.MenuItemNewWithLabel("Item!")
-	//item.SetText("Menu!")
-	menu.Add(item)
+		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
+		fileMenu.Append(openButton)
+
+		// TODO: separator
+		
+		quitButton, _ := gtk.MenuItemNewWithLabel("Quit")
+		fileMenu.Append(quitButton)
+
+		return fileMenu
+	}())
+	menuBar.Append(fileButton)
+
+	viewButton, err := gtk.MenuItemNewWithLabel("View")
+	viewButton.SetSubmenu(func() *gtk.Menu {
+		viewMenu, _ := gtk.MenuNew()
+
+		// TODO: checkbox
+		autoRenderButton, _ := gtk.MenuItemNewWithLabel("Auto-render")
+		viewMenu.Append(autoRenderButton)
+
+		return viewMenu
+	}())
+	menuBar.Append(viewButton)
+
+	/*
+	analyseButton, err := gtk.MenuItemNewWithLabel("Analyse")
+	analyseButton.SetSubmenu(func() *gtk.Menu {
+		analyseMenu, _ := gtk.MenuNew()
+
+		timeChartButton, _ := gtk.MenuItemNewWithLabel("Time Chart")
+		analyseMenu.Append(timeChartButton)
+
+		return analyseMenu
+	}())
+	menuBar.Append(analyseButton)
+	*/
+
+	helpButton, err := gtk.MenuItemNewWithLabel("Help")
+	helpButton.SetSubmenu(func() *gtk.Menu {
+		helpMenu, _ := gtk.MenuNew()
+
+		aboutButton, _ := gtk.MenuItemNewWithLabel("About")
+		aboutButton.Connect("activate", func(btn *gtk.MenuItem) {
+			abt, _ := gtk.AboutDialogNew()
+			// TODO: SetLogo(gdk.PixBuf)
+			abt.SetProgramName(NAME)
+			abt.SetVersion(VERSION)
+			abt.SetCopyright("(c) 2011-2014 Shish")
+			abt.SetLicense("Angry Badger")
+			abt.SetWebsite("http://code.shishnet.org/context")
+			//abt.SetWrapLicense(true)
+			//abt.SetAuthors("Shish <webmaster@shishnet.org>")
+			abt.Show()
+		})
+		helpMenu.Append(aboutButton)
+
+		docButton, _ := gtk.MenuItemNewWithLabel("Documentation")
+		/*
+		   t = Toplevel(master)
+		   t.title("Context Documentation")
+		   t.transient(master)
+		   scroll = Scrollbar(t, orient=VERTICAL)
+		   tx = Text(
+			   t,
+			   wrap=WORD,
+			   yscrollcommand=scroll.set,
+		   )
+		   scroll['command'] = tx.yview
+		   scroll.pack(side=RIGHT, fill=Y, expand=1)
+		   tx.pack(fill=BOTH, expand=1)
+		   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
+		   tx.configure(state="disabled")
+		   tx.focus_set()
+		   win_center(t)
+		*/
+		helpMenu.Append(docButton)
+
+		return helpMenu
+	}())
+	menuBar.Append(helpButton)
 
 	return menuBar
 }
 
-/*
-   def __menu(self, master):
-       menubar = Menu(master)
-
-       def file_menu():
-           menu = Menu(menubar, tearoff=0)
-           menu.add_command(label="Open ctxt / cbin", command=self.open_file)
-           # menu.add_command(label="Append ctxt", command=self.append_file)
-           menu.add_separator()
-           menu.add_command(label="Exit", command=self.save_settings_and_quit)
-           return menu
-       menubar.add_cascade(label="File", menu=file_menu())
-
-       def view_menu():
-           menu = Menu(menubar, tearoff=0)
-           menu.add_checkbutton(label="Auto-render", variable=self.render_auto)
-           # menu.add_command(label="Filter threads", command=None)
-           return menu
-       menubar.add_cascade(label="View", menu=view_menu())
-
-       def analyse_menu():
-           # def timechart():
-           #    _TimeChart(master, self.output.get("0.0", END))
-           menu = Menu(menubar, tearoff=0)
-           # menu.add_command(label="Time Chart", command=timechart)
-           return menu
-       # menubar.add_cascade(label="Analyse", menu=analyse_menu())
-
-       def help_menu():
-           def show_about():
-               t = Toplevel(master)
-               t.title("About")
-               t.transient(master)
-               t.resizable(False, False)
-               Label(t, image=self.img_logo).grid(column=0, row=0, sticky=(E, W))
-               Label(t, text="Context %s" % VERSION, anchor=CENTER).grid(column=0, row=1, sticky=(E, W))
-               Label(t, text="(c) 2011-2014 Shish", anchor=CENTER).grid(column=0, row=2, sticky=(E, W))
-               Button(t, text="Close", command=t.destroy).grid(column=0, row=3, sticky=(E,))
-               win_center(t)
-
-           def show_docs():
-               t = Toplevel(master)
-               t.title("Context Documentation")
-               t.transient(master)
-               scroll = Scrollbar(t, orient=VERTICAL)
-               tx = Text(
-                   t,
-                   wrap=WORD,
-                   yscrollcommand=scroll.set,
-               )
-               scroll['command'] = tx.yview
-               scroll.pack(side=RIGHT, fill=Y, expand=1)
-               tx.pack(fill=BOTH, expand=1)
-               tx.insert("0.0", b64decode(data.README).replace("\r", ""))
-               tx.configure(state="disabled")
-               tx.focus_set()
-               win_center(t)
-
-           def show_license():
-               t = Toplevel(master)
-               t.title("Context Licenses")
-               t.transient(master)
-               scroll = Scrollbar(t, orient=VERTICAL)
-               tx = Text(
-                   t,
-                   wrap=WORD,
-                   yscrollcommand=scroll.set,
-               )
-               scroll['command'] = tx.yview
-               scroll.pack(side=RIGHT, fill=Y, expand=1)
-               tx.pack(fill=BOTH, expand=1)
-               tx.insert("0.0", b64decode(data.LICENSE).replace("\r", ""))
-               tx.configure(state="disabled")
-               tx.focus_set()
-               win_center(t)
-
-           menu = Menu(menubar, tearoff=0)
-           menu.add_command(label="About", command=show_about)
-           menu.add_command(label="Documentation", command=show_docs)
-           menu.add_command(label="License", command=show_license)
-           return menu
-       menubar.add_cascade(label="Help", menu=help_menu())
-
-       return menubar
-*/
 
 func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid, err := gtk.GridNew()
@@ -299,8 +292,9 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 		iter, _ := self.data.Bookmarks.GetIter(path)
 		gvalue, _ := self.data.Bookmarks.GetValue(iter, 0)
 		value, _ := gvalue.GoValue()
-		log.Println("Nav: bookmark", value)
-		self.GoTo(value)
+		fvalue := value.(float64)
+		log.Println("Nav: bookmark", fvalue)
+		self.GoTo(fvalue)
 	})
 	bookmarkScrollPane.Add(bookmarkView)
 	grid.Attach(bookmarkScrollPane, 0, 0, 5, 1)
