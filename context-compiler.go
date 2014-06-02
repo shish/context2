@@ -192,7 +192,7 @@ func compileLog(logFile string, databaseFile string) {
 		case e.Type == "LOCKW":
 			thread.lock = &e
 
-		// end blocking wait (if there is one) and aquire lock
+		// end blocking wait (if there is one) and acquire lock
 		case e.Type == "LOCKA":
 			if thread.lock != nil {
 				s := thread.lock
@@ -204,7 +204,7 @@ func compileLog(logFile string, databaseFile string) {
 			}
 			thread.lock = &e
 
-		// release the lock which was aquired
+		// release the lock which was acquired
 		case e.Type == "LOCKR":
 			if thread.lock != nil {
 				s := thread.lock

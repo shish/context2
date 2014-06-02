@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"code.google.com/p/gcfg"
 	"github.com/conformal/gotk3/glib"
+	//"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/gtk"
 	"github.com/shish/gotk3/cairo"
 	//"github.com/conformal/gotk3/pango"
@@ -17,7 +17,6 @@ import (
 const (
 	NAME            = "Context"
 	VERSION         = "v0.0.0"
-	MAX_DEPTH       = 7
 	BLOCK_HEIGHT    = 20
 	HEADER_HEIGHT   = 20
 	SCRUBBER_HEIGHT = 20
@@ -34,23 +33,6 @@ const (
 
 /*
    #########################################################################
-   # Config
-   #########################################################################
-*/
-
-type Config struct {
-	Gui struct {
-		RenderLen         int    `gcfg:"render_len"`
-		Scale             int    `gcfg:"scale"`
-		RenderCutoff      int    `gcfg:"render_cutoff"`
-		CoalesceThreshold int    `gcfg:"coalesce_threshold"`
-		RenderAuto        int    `gcfg:"render_auto"`
-		LastLogDir        string `gcfg:"last_log_dir"`
-	}
-}
-
-/*
-   #########################################################################
    # GUI setup
    #########################################################################
 */
@@ -60,7 +42,7 @@ type ContextViewer struct {
 	master      *gtk.Window
 	status      *gtk.Statusbar
 	configFile  string
-	config      Config
+	config      viewer.Config
 
 	// data
 	data viewer.Data
@@ -79,7 +61,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	// Set the default window size.
 	// TODO: options.geometry
 	master.SetDefaultSize(1000, 600)
-	//	set_icon(root, "images/tools-icon")
+	//master.SetDefaultIcon(nil)  // FIXME
 
 	self.master = master
 	/*
@@ -94,42 +76,19 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	   except OSError:
 	       pass
 	*/
-	//        self.configFile = os.path.expanduser(os.path.join("~", ".config", "viewer.cfg"))
 	self.configFile = usr.HomeDir + "/.config/viewer.cfg"
 	self.settings.RenderScale = 50.0
 	self.settings.RenderLen = 10.0
-	/*
-	   self.threads = []
-	   self.render_start = DoubleVar(master, 0)
-	   self.render_len = IntVar(master, 10)
-	   self.render_cutoff = IntVar(master, 1)
-	   self.coalesce_threshold = IntVar(master, 1)
-	   self.render_auto = IntVar(master, 1)
-	   self.scale = IntVar(master, 1000)
-	*/
+	self.settings.MaxDepth = 7
 
-	self.LoadSettings()
+	self.config.Load(self.configFile)
 
 	master.Connect("destroy", func() {
-		self.SaveSettingsAndQuit()
+		self.config.Save(self.configFile)
+		gtk.MainQuit()
 	})
-	/*
-	   self.render_start.trace_variable("w", lambda *x: conditional(self.render_auto, self.update))
-	   self.render_len.trace_variable("w", lambda *x: conditional(self.render_auto, self.update))
-	   self.render_cutoff.trace_variable("w", lambda *x: conditional(self.render_auto, self.render))
-	   self.coalesce_threshold.trace_variable("w", lambda *x: conditional(self.render_auto, self.update))
-	   self.scale.trace_variable("w", lambda *x: conditional(self.render_auto, self.render))
 
-	   self.img_start = PhotoImage(data=data.start)
-	   self.img_prev = PhotoImage(data=data.prev)
-	   self.img_next = PhotoImage(data=data.next)
-	   self.img_end = PhotoImage(data=data.end)
-	   self.img_logo = PhotoImage(data=data.context_name)
-	*/
-
-	// Create a new label widget to show in the window.
 	grid, err := gtk.GridNew()
-	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
 	master.Add(grid)
 
 	menuBar := self.__menu()
@@ -156,7 +115,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	master.ShowAll()
 
 	if databaseFile != nil {
-		self.LoadFile(*databaseFile)
+		go self.LoadFile(*databaseFile)
 	}
 }
 
@@ -273,19 +232,51 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid.Add(l)
 
 	start, _ := gtk.SpinButtonNewWithRange(0, 9999999999999, 0.1)
+	start.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: start =", sb.GetValue())
+		self.settings.RenderStart = sb.GetValue()
+	})
 	grid.Add(start)
 
 	l, _ = gtk.LabelNew("Seconds")
 	grid.Add(l)
 
 	sec, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
+	sec.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: len =", sb.GetValue())
+		self.settings.RenderLen = sb.GetValue()
+	})
 	grid.Add(sec)
 
 	l, _ = gtk.LabelNew("Pixels Per Second")
 	grid.Add(l)
 
 	pps, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	pps.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: scale =", sb.GetValue())
+		self.settings.RenderScale = sb.GetValue()
+	})
 	grid.Add(pps)
+
+	l, _ = gtk.LabelNew("Cutoff (ms)")
+	grid.Add(l)
+
+	cutoff, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: cutoff =", sb.GetValue())
+		self.settings.Cutoff = sb.GetValue()
+	})
+	grid.Add(cutoff)
+
+	l, _ = gtk.LabelNew("Coalesce (ms)")
+	grid.Add(l)
+
+	coalesce, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: coalesce =", sb.GetValue())
+		self.settings.Coalesce = sb.GetValue()
+	})
+	grid.Add(coalesce)
 
 	label, _ := gtk.ButtonNewWithLabel("Render!")
 	grid.Add(label)
@@ -293,81 +284,70 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	return grid
 }
 
-/*
-   _la("  Start ")
-   _sp(0, int(time.time()), 10, self.render_start, 15)
-   _la("  Seconds ")
-   _sp(MIN_SEC, MAX_SEC, 1, self.render_len, 3)
-   _la("  Pixels per second ")
-   _sp(MIN_PPS, MAX_PPS, 100, self.scale, 5)
-
-   _la("  Cutoff (ms) ")
-   _sp(0, 1000, 1, self.render_cutoff, 3)
-   _la("  Coalesce (ms) ")
-   _sp(0, 1000, 1, self.coalesce_threshold, 3)
-   Button(f, text="Render", command=self.update).pack(side=LEFT, fill=Y)  # padding=0
-
-   f.pack()
-   return f
-*/
-
 func (self *ContextViewer) __bookmarks() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
+	// TODO: bookmark filter / search?
+	// www.mono-project.com/GtkSharp_TreeView_Tutorial
 	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
-	bookmarkScroller, _ := gtk.ScrolledWindowNew(nil, nil)
-	bookmarkScroller.SetSizeRequest(250, 200)
+	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
+	bookmarkScrollPane.SetSizeRequest(250, 200)
 	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.Bookmarks)
 	bookmarkView.SetVExpand(true)
-	bookmarkScroller.Add(bookmarkView)
-	grid.Attach(bookmarkScroller, 0, 0, 5, 1)
+	bookmarkView.Connect("row-activated", func(bv *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+		iter, _ := self.data.Bookmarks.GetIter(path)
+		gvalue, _ := self.data.Bookmarks.GetValue(iter, 0)
+		value, _ := gvalue.GoValue()
+		log.Println("Nav: bookmark", value)
+		self.GoTo(value)
+	})
+	bookmarkScrollPane.Add(bookmarkView)
+	grid.Attach(bookmarkScrollPane, 0, 0, 5, 1)
 
 	renderer, _ := gtk.CellRendererTextNew()
 	column, _ := gtk.TreeViewColumnNewWithAttribute("Bookmarks", renderer, "text", 1)
 	bookmarkView.AppendColumn(column)
 
 	l, _ := gtk.ButtonNewWithLabel("<<")
+	l.Connect("clicked", func() {
+		log.Println("Nav: Start")
+		self.GoTo(self.data.LogStart)
+	})
 	grid.Attach(l, 0, 1, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel("<")
+	l.Connect("clicked", func() {
+		log.Println("Nav: Prev")
+		self.GoTo(self.data.GetLatestBookmarkBefore(self.settings.RenderStart))
+	})
 	grid.Attach(l, 1, 1, 1, 1)
 
 	//l, _ = gtk.ButtonNewWithLabel(" ")
 	//grid.Attach(l, 2, 1, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel(">")
+	l.Connect("clicked", func() {
+		log.Println("Nav: Next")
+		self.GoTo(self.data.GetEarliestBookmarkAfter(self.settings.RenderStart))
+	})
 	grid.Attach(l, 3, 1, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel(">>")
+	l.Connect("clicked", func() {
+		log.Println("Nav: End")
+		self.GoTo(self.data.LogEnd - self.settings.RenderLen)
+	})
 	grid.Attach(l, 4, 1, 1, 1)
 
 	return grid
 }
 
-/*
-   def __bookmarks(self, master):
-       self.bookmarks_list = li
-
-       def _lbox_selected(*args):
-           selected_idx = int(li.curselection()[0])
-           self.render_start.set(self.bookmarks_values[selected_idx])
-           self.canvas.xview_moveto(0)
-           if not self.render_auto.get():
-               self.update()
-       li.bind('<Double-Button-1>', _lbox_selected)
-
-       Button(buttons, image=self.img_start, command=self.start_event).pack(side="left")
-       Button(buttons, image=self.img_prev, command=self.prev_event).pack(side="left")
-       Button(buttons, image=self.img_end, command=self.end_event).pack(side="right")
-       Button(buttons, image=self.img_next, command=self.next_event).pack(side="right")
-*/
-
 func (self *ContextViewer) __canvas() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
-	canvasScroller, _ := gtk.ScrolledWindowNew(nil, nil)
-	canvasScroller.SetSizeRequest(250, 200)
+	canvasScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
+	canvasScrollPane.SetSizeRequest(250, 200)
 
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetSizeRequest(2000, 20)
@@ -377,13 +357,6 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 		self.RenderBase(cr)
 		self.RenderData(cr)
 	})
-
-	canvasScroller.Add(canvas)
-	grid.Add(canvasScroller)
-
-	return grid
-}
-
 /*
    canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
    canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
@@ -405,6 +378,12 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
    # self.canvas.bind("<B1-Motion>", _cm)
 */
 
+	canvasScrollPane.Add(canvas)
+	grid.Add(canvasScrollPane)
+
+	return grid
+}
+
 func (self *ContextViewer) __scrubber() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
@@ -414,34 +393,24 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		self.RenderScrubber(cr)
 	})
+	canvas.Connect("button-press-event", func() {
+		log.Println("Nav: scrubbing to")
+/*
+       width_fraction = float(e.x) / sc.winfo_width()
+       ev_s = self.get_earliest_bookmark_after(0)
+       ev_e = self.get_latest_bookmark_before(sys.maxint)
+       ev_l = ev_e - ev_s
+       self.GoTo(ev_s + ev_l * width_fraction - float(self.render_len.get()) / 2)
+*/
+	})
 	grid.Add(canvas)
 
 	return grid
 }
 
-/*
-   def sc_goto(e):
-       width_fraction = float(e.x) / sc.winfo_width()
-       ev_s = self.get_earliest_bookmark_after(0)
-       ev_e = self.get_latest_bookmark_before(sys.maxint)
-       ev_l = ev_e - ev_s
-       self.render_start.set(ev_s + ev_l * width_fraction - float(self.render_len.get()) / 2)
-       if not self.render_auto.get():
-           self.update()
-       self.canvas.xview_moveto(0.5)
-   sc.bind("<1>", sc_goto)
-
-   def resize(event):
-       if self.c:
-           self.render_scrubber_activity()
-           self.render_scrubber_arrow()
-       # sc.coords(line, 0, 0, event.width, event.height)
-   sc.bind("<Configure>", resize)
-*/
-
 func (self *ContextViewer) SetStatus(text string) {
 	if text != "" {
-		fmt.Println(text)
+		log.Println(text)
 	}
 	self.status.Pop(0) // RemoveAll?
 	self.status.Push(0, text)
@@ -450,6 +419,13 @@ func (self *ContextViewer) SetStatus(text string) {
 func (self *ContextViewer) ShowError(title, text string) {
 	log.Printf("%s: %s\n", title, text)
 	// TODO
+}
+
+func (self *ContextViewer) GoTo(ts float64) {
+	if ts >= self.data.LogStart && ts <= self.data.LogEnd {
+		self.settings.RenderStart = ts
+		// self.canvas.xview_moveto(0)
+	}
 }
 
 /*
@@ -473,15 +449,13 @@ func (self *ContextViewer) OpenFile() {
 	if filename != nil {
 		self.config.Gui.LastLogDir = filepath.Dir(*filename)
 		self.LoadFile(*filename)
-		//		if err != nil {
-		//			self.SetStatus("Error loading file: %s" % str(e))
-		//		}
+		//if err != nil {
+		//	self.SetStatus("Error loading file: %s" % str(e))
+		//}
 	}
 }
 
 func (self *ContextViewer) LoadFile(givenFile string) {
-	fmt.Printf("Loading file: %s\n", givenFile)
-
 	databaseFile, err := self.data.LoadFile(givenFile, self.SetStatus)
 	if err != nil {
 		self.ShowError("Error", fmt.Sprintf("Error loading '%s': %s", givenFile, err))
@@ -496,91 +470,6 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 
 	self.settings.RenderStart = self.data.LogStart
 	self.Update() // the above should do this
-}
-
-/*
-   #########################################################################
-   # Settings
-   #########################################################################
-*/
-
-func (self *ContextViewer) LoadSettings() {
-	err := gcfg.ReadFileInto(&self.config, self.configFile)
-	if err != nil {
-		fmt.Printf("Error loading settings from %s:\n  %s\n", self.configFile, err)
-	}
-}
-
-func (self *ContextViewer) SaveSettings() {
-	/*
-	   try:
-	       cp = ConfigParser.SafeConfigParser()
-	       cp.add_section("gui")
-	       cp.set("gui", "render_len", str(self.render_len.get()))
-	       cp.set("gui", "scale", str(self.scale.get()))
-	       cp.set("gui", "render_cutoff", str(self.render_cutoff.get()))
-	       cp.set("gui", "coalesce_threshold", str(self.coalesce_threshold.get()))
-	       cp.set("gui", "render_auto", str(self.render_auto.get()))
-	       cp.set("gui", "last_log_dir", self._last_log_dir)
-	       cp.write(file(self.config_file, "w"))
-	   except Exception as e:
-	       print("Error writing settings to %s:\n  %s" % (self.config_file, e))
-	*/
-}
-
-func (self *ContextViewer) SaveSettingsAndQuit() {
-	self.SaveSettings()
-	gtk.MainQuit()
-}
-
-/*
-   #########################################################################
-   # Navigation
-   #########################################################################
-*/
-
-func (self *ContextViewer) GetEarliestBookmarkAfter(startHint float64) float64 {
-	var startTime float64
-	sql := "SELECT min(start_time) FROM events WHERE start_time > ? AND start_type = 'BMARK'"
-	for query, err := self.data.Conn.Query(sql, startHint); err == nil; err = query.Next() {
-		query.Scan(&startTime)
-	}
-	return startTime
-}
-
-func (self *ContextViewer) GetLatestBookmarkBefore(endHint float64) float64 {
-	var endTime float64
-	sql := "SELECT max(start_time) FROM events WHERE start_time < ? AND start_type = 'BMARK'"
-	for query, err := self.data.Conn.Query(sql, endHint); err == nil; err = query.Next() {
-		query.Scan(&endTime)
-	}
-	return endTime
-}
-
-func (self *ContextViewer) EndEvent() {
-	self.settings.RenderStart = self.data.LogEnd - self.settings.RenderLen
-	// self.canvas.xview_moveto(0)
-}
-
-func (self *ContextViewer) NextEvent() {
-	ts := self.GetEarliestBookmarkAfter(self.settings.RenderStart)
-	if ts != 0.0 {
-		// self.render_start.set(ts)
-	}
-	// self.canvas.xview_moveto(0)
-}
-
-func (self *ContextViewer) PrevEvent() {
-	ts := self.GetLatestBookmarkBefore(self.settings.RenderStart)
-	if ts != 0.0 {
-		// self.render_start.set(ts)
-	}
-	// self.canvas.xview_moveto(0)
-}
-
-func (self *ContextViewer) StartEvent() {
-	self.settings.RenderStart = self.data.LogStart
-	// self.canvas.xview_moveto(0)
 }
 
 /*
@@ -738,7 +627,6 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context) {
 	cr.Stroke()
 }
 
-// Render grid lines and markers
 func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	cr.SetSourceRGB(1, 1, 1)
 	cr.Paint()
@@ -759,7 +647,7 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	cr.SetLineWidth(1.0)
 	for n := rs_px; n < rs_px+rl_px; n += 100 {
 		cr.MoveTo(n-rs_px, 0)
-		cr.LineTo(n-rs_px, float64(HEADER_HEIGHT+len(self.data.Threads)*MAX_DEPTH*BLOCK_HEIGHT))
+		cr.LineTo(n-rs_px, float64(HEADER_HEIGHT+len(self.data.Threads)*self.settings.MaxDepth*BLOCK_HEIGHT))
 		cr.Stroke()
 
 		//label := fmt.Sprintf(" +%.4f", float64(n) / _sc - _rl)
@@ -775,15 +663,14 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	cr.SetSourceRGB(0.75, 0.75, 0.75) // #CCC
 	cr.SetLineWidth(1.0)
 	for n, _ := range self.data.Threads {
-		cr.MoveTo(0, float64(HEADER_HEIGHT+MAX_DEPTH*BLOCK_HEIGHT*n))
-		cr.LineTo(rl_px, float64(HEADER_HEIGHT+MAX_DEPTH*BLOCK_HEIGHT*n))
+		cr.MoveTo(0, float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n))
+		cr.LineTo(rl_px, float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n))
 		cr.Stroke()
 
-		//self.canvas.create_text(0, HEADER_HEIGHT + MAX_DEPTH * BLOCK_HEIGHT * (n + 1) - 5, text=" " + self.threads[n], anchor=SW, tags="grid")
+		//self.canvas.create_text(0, HEADER_HEIGHT + self.settings.MaxDepth * BLOCK_HEIGHT * (n + 1) - 5, text=" " + self.threads[n], anchor=SW, tags="grid")
 	}
 }
 
-// add the event rectangles
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
 	_rs := self.settings.RenderStart
 	_rc := self.settings.Cutoff
@@ -798,11 +685,12 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 		}
 		thread_idx := event.ThreadID
 
-		if event.StartType == "START" {
+		switch {
+		case event.StartType == "START":
 			if (event.EndTime-event.StartTime)*1000 < _rc {
 				continue
 			}
-			if event.Depth >= MAX_DEPTH {
+			if event.Depth >= self.settings.MaxDepth {
 				continue
 			}
 			shown += 1
@@ -810,22 +698,16 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 			//	self.ShowError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
 			//	break
 			//}
-			self.ShowEvent(
-				cr,
-				&event, _rs, _sc,
-				thread_idx,
-			)
-		} else if event.StartType == "BMARK" {
+			self.ShowEvent(cr, &event, _rs, _sc, thread_idx)
+
+		case event.StartType == "BMARK":
 			// note that when loading data, we currently filter for # "start_type=START" for a massive indexed speed boost
 			// so there are no bookmarks. We may want to load bookmarks
 			// into a separate array?
 			//pass  // render bookmark
-		} else if event.StartType == "LOCKW" || event.StartType == "LOCKA" {
-			self.ShowLock(
-				cr,
-				&event, _rs, _sc,
-				thread_idx,
-			)
+
+		case event.StartType == "LOCKW" || event.StartType == "LOCKA":
+			self.ShowLock(cr, &event, _rs, _sc, thread_idx)
 		}
 	}
 
@@ -849,7 +731,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 		cr.SetSourceRGB(1.0, 0.8, 0.8)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*self.settings.MaxDepth*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
 		length_px, BLOCK_HEIGHT,
 	)
 	cr.Fill()
@@ -860,13 +742,13 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 		cr.SetSourceRGB(0.5, 0.3, 0.3)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*self.settings.MaxDepth*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
 		length_px, BLOCK_HEIGHT,
 	)
 	cr.Stroke()
 	/*
 		t = self.canvas.create_text(
-		   start_px, HEADER_HEIGHT + thread * MAX_DEPTH * BLOCK_HEIGHT + event.Depth * BLOCK_HEIGHT + 3,
+		   start_px, HEADER_HEIGHT + thread * self.settings.MaxDepth * BLOCK_HEIGHT + event.Depth * BLOCK_HEIGHT + 3,
 		   text=self.truncate_text(" " + event.text, length_px), tags="event event_label", anchor=NW, width=length_px,
 		   font="TkFixedFont",
 		   state="disabled",
@@ -895,14 +777,14 @@ func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offs
 		cr.SetSourceRGB(0.85, 0.85, 1.0)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*MAX_DEPTH*BLOCK_HEIGHT),
-		length_px, float64(MAX_DEPTH*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*self.settings.MaxDepth*BLOCK_HEIGHT),
+		length_px, float64(self.settings.MaxDepth*BLOCK_HEIGHT),
 	)
 	cr.Fill()
 
 	/*
 		t = self.canvas.create_text(
-		   start_px + length_px, HEADER_HEIGHT + (thread + 1) * MAX_DEPTH * BLOCK_HEIGHT,
+		   start_px + length_px, HEADER_HEIGHT + (thread + 1) * self.settings.MaxDepth * BLOCK_HEIGHT,
 		   text=self.truncate_text(event.text, length_px),
 		   tags="lock lock_label", anchor=SE, width=length_px,
 		   font="TkFixedFont",
@@ -959,13 +841,7 @@ func main() {
 	   parser = OptionParser()
 	   parser.add_option("-g", "--geometry", dest="geometry", default="1000x600",
 	                     help="location and size of window", metavar="GM")
-	   parser.add_option("-d", "--depth", dest="depth", default=7,
-	                     type=int, help="how many rows to show in each stack", metavar="DEPTH")
 	   (options, args) = parser.parse_args(argv)
-
-	   # lol constants
-	   global MAX_DEPTH
-	   MAX_DEPTH = options.depth
 	*/
 
 	if len(os.Args) > 1 {

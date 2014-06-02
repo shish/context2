@@ -7,6 +7,7 @@ type DataSettings struct {
 	RenderScale float64
 
 	// data loading
+	MaxDepth    int
 	Cutoff      float64
 	Coalesce    float64
 }

@@ -54,12 +54,12 @@ func VersionCheck(databaseFile string) bool {
 }
 
 func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, error) {
-	log.Println("Loading file", givenFile)
+	log.Println("Loading: file", givenFile)
 
 	/*
 	   path, _ext = os.path.splitext(givenFile)
 	*/
-	path := strings.Split(givenFile, ".")[0]
+	path := strings.Split(givenFile, ".")[0]  // FIXME
 	logFile := path + ".ctxt"
 	databaseFile := path + ".cbin"
 
@@ -111,7 +111,6 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 	self.Conn, _ = sqlite3.Open(databaseFile)
 
 	self.Data = []Event{} // don't load the bulk of the data yet
-	// self.LoadEvents()
 	self.LoadBookmarks()
 	self.LoadSummary()
 	self.LoadThreads()
@@ -120,7 +119,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 }
 
 func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, renderCutoff int, setStatus func(string)) {
-	log.Println("Loading events")
+	log.Println("Loading: events")
 
 	defer setStatus("")
 	s := renderStart
@@ -180,7 +179,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 }
 
 func (self *Data) LoadBookmarks() {
-	log.Println("Loading bookmarks")
+	log.Println("Loading: bookmarks")
 
 	self.Bookmarks.Clear()
 
@@ -197,7 +196,7 @@ func (self *Data) LoadBookmarks() {
 }
 
 func (self *Data) LoadThreads() {
-	log.Println("Loading threads")
+	log.Println("Loading: threads")
 
 	self.Threads = make([]string, 0, 10)
 
@@ -210,7 +209,7 @@ func (self *Data) LoadThreads() {
 }
 
 func (self *Data) LoadSummary() {
-	log.Println("Loading summary")
+	log.Println("Loading: summary")
 
 	self.Summary = make([]int, 0, 1000)
 
@@ -225,4 +224,22 @@ func (self *Data) LoadSummary() {
 	for query, err := self.Conn.Query(sql); err == nil; err = query.Next() {
 		query.Scan(&self.LogStart, &self.LogEnd)
 	}
+}
+
+func (self *Data) GetEarliestBookmarkAfter(startHint float64) float64 {
+	var startTime float64
+	sql := "SELECT min(start_time) FROM events WHERE start_time > ? AND start_type = 'BMARK'"
+	for query, err := self.Conn.Query(sql, startHint); err == nil; err = query.Next() {
+		query.Scan(&startTime)
+	}
+	return startTime
+}
+
+func (self *Data) GetLatestBookmarkBefore(endHint float64) float64 {
+	var endTime float64
+	sql := "SELECT max(start_time) FROM events WHERE start_time < ? AND start_type = 'BMARK'"
+	for query, err := self.Conn.Query(sql, endHint); err == nil; err = query.Next() {
+		query.Scan(&endTime)
+	}
+	return endTime
 }
