@@ -21,3 +21,15 @@ _testmain.go
 
 *.exe
 *.test
+
+# editor files
+*.un~
+.idea/
+
+# test data
+*.ctxt
+*.cbin
+
+# binaries
+context-compiler
+context-viewer
