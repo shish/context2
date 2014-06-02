@@ -751,10 +751,7 @@ func (self *ContextViewer) GetLatestBookmarkBefore(endHint float64) float64 {
 }
 
 func (self *ContextViewer) EndEvent() {
-	ts := self.GetLatestBookmarkBefore(float64(time.Now().UnixNano() * 1000000))
-	if ts != 0.0 {
-		// self.render_start.set(ts)
-	}
+	self.renderStart = self.logEnd - self.renderLen
 	// self.canvas.xview_moveto(0)
 }
 
@@ -775,10 +772,7 @@ func (self *ContextViewer) PrevEvent() {
 }
 
 func (self *ContextViewer) StartEvent() {
-	ts := self.GetEarliestBookmarkAfter(0)
-	if ts != 0.0 {
-		// self.render_start.set(ts)
-	}
+	self.renderStart = self.logStart
 	// self.canvas.xview_moveto(0)
 }
 
