@@ -629,21 +629,18 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 	//layout.SetWrap(pango.WRAP_WORD_CHAR)
 	//layout.SetFontDescription(pango.FontDescription("Arial 10"))
 
-	cr.SetSourceRGB(0.8, 0.8, 0.8) // #CCC
 	cr.SetLineWidth(1.0)
+	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+	cr.SetFontSize(10)
 	for n := rs_px; n < rs_px+rl_px; n += 100 {
-		cr.MoveTo(n-rs_px, 0)
-		cr.LineTo(n-rs_px, float64(HEADER_HEIGHT+len(self.data.Threads)*self.settings.MaxDepth*BLOCK_HEIGHT))
+		cr.SetSourceRGB(0.8, 0.8, 0.8) // #CCC
+		cr.MoveTo(n-rs_px+0.5, 0+0.5)
+		cr.LineTo(n-rs_px+0.5, float64(HEADER_HEIGHT+len(self.data.Threads)*self.settings.MaxDepth*BLOCK_HEIGHT)+0.5)
 		cr.Stroke()
 
-		//label := fmt.Sprintf(" +%.4f", float64(n) / _sc - _rl)
-		//self.canvas.create_text(n - rs_px, 5, text=label, anchor=NW, tags="time_label grid")
-		//layout.SetText(label)
-		//layout.SetWidth(r[1][2] * pango.SCALE)
-		//cr.translate(r[1][0]+2, r[1][1]+1)
-		//pangocairo_viewer.UpdateLayout(layout)
-		//pangocairo_viewer.ShowLayout(layout)
-		//cr.Translate(-r[1][0]-2, -r[1][1]-1)
+		cr.SetSourceRGB(0.4, 0.4, 0.4)
+		cr.MoveTo(n-rs_px, HEADER_HEIGHT * 0.75)
+		cr.ShowText(fmt.Sprintf(" +%.4f", float64(n) / _sc - _rl))
 	}
 
 	cr.SetSourceRGB(0.75, 0.75, 0.75) // #CCC
@@ -653,7 +650,9 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 		cr.LineTo(rl_px, float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n))
 		cr.Stroke()
 
-		//self.canvas.create_text(0, HEADER_HEIGHT + self.settings.MaxDepth * BLOCK_HEIGHT * (n + 1) - 5, text=" " + self.threads[n], anchor=SW, tags="grid")
+		cr.SetSourceRGB(0.4, 0.4, 0.4)
+		cr.MoveTo(3.0, float64(HEADER_HEIGHT + self.settings.MaxDepth * BLOCK_HEIGHT * (n + 1) - 5))
+		cr.ShowText(self.data.Threads[n])
 	}
 }
 
