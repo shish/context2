@@ -20,7 +20,7 @@ const (
 	VERSION         = "v0.0.0"
 	BLOCK_HEIGHT    = 20
 	HEADER_HEIGHT   = 20
-	SCRUBBER_HEIGHT = 21.0
+	SCRUBBER_HEIGHT = 20
 	MIN_PPS         = 1
 	MAX_PPS         = 5000
 	MIN_SEC         = 1
@@ -594,8 +594,8 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 
 	cr.SetLineWidth(1.0)
 	line := func(x1, y1, x2, y2 float64) {
-		cr.MoveTo(x1 + 0.5, y1)
-		cr.LineTo(x2 + 0.5, y2)
+		cr.MoveTo(x1+0.5, y1+0.5)
+		cr.LineTo(x2+0.5, y2+0.5)
 		cr.Stroke()
 	}
 
@@ -614,41 +614,40 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 }
 
 func (self *ContextViewer) RenderBase(cr *cairo.Context) {
-	cr.SetSourceRGB(1, 1, 1)
-	cr.Paint()
-
-	_rl := self.settings.RenderLen
-	_sc := self.settings.RenderScale
-
-	rs_px := _rl * _sc
-	rl_px := _rl * _sc
-
-	//pangocairo_context := pangocairo.CairoContext(cr)
-	//layout := pangocairo_viewer.create_layout()
-	//layout.SetAlignment(pango.ALIGN_LEFT)
-	//layout.SetWrap(pango.WRAP_WORD_CHAR)
-	//layout.SetFontDescription(pango.FontDescription("Arial 10"))
-
+	// common settings
 	cr.SetLineWidth(1.0)
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
-	for n := rs_px; n < rs_px+rl_px; n += 100 {
-		cr.SetSourceRGB(0.8, 0.8, 0.8) // #CCC
-		cr.MoveTo(n-rs_px+0.5, 0+0.5)
-		cr.LineTo(n-rs_px+0.5, float64(HEADER_HEIGHT+len(self.data.Threads)*self.settings.MaxDepth*BLOCK_HEIGHT)+0.5)
-		cr.Stroke()
 
-		cr.SetSourceRGB(0.4, 0.4, 0.4)
-		cr.MoveTo(n-rs_px, HEADER_HEIGHT * 0.75)
-		cr.ShowText(fmt.Sprintf(" +%.4f", float64(n) / _sc - _rl))
+	line := func(x1, y1, x2, y2 float64) {
+		cr.MoveTo(x1+0.5, y1+0.5)
+		cr.LineTo(x2+0.5, y2+0.5)
+		cr.Stroke()
 	}
 
-	cr.SetSourceRGB(0.75, 0.75, 0.75) // #CCC
+	width := self.settings.RenderScale*self.settings.RenderLen
+	height := float64(HEADER_HEIGHT+len(self.data.Threads)*self.settings.MaxDepth*BLOCK_HEIGHT)
+
+	// blank canvas
+	cr.SetSourceRGB(1, 1, 1)
+	cr.Paint()
+
+	// draw vertical bars (time)
+	for x := 0.0; x < width; x += 100.0 {
+		cr.SetSourceRGB(0.8, 0.8, 0.8)
+		line(x, 0, x, height)
+
+		cr.SetSourceRGB(0.4, 0.4, 0.4)
+		cr.MoveTo(x, HEADER_HEIGHT * 0.75)
+		cr.ShowText(fmt.Sprintf(" +%.4f", float64(x) / width * self.settings.RenderLen))
+	}
+
+	// draw horizontal bars (thread)
+	cr.SetSourceRGB(0.75, 0.75, 0.75)
 	cr.SetLineWidth(1.0)
 	for n, _ := range self.data.Threads {
-		cr.MoveTo(0, float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n))
-		cr.LineTo(rl_px, float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n))
-		cr.Stroke()
+		y := float64(HEADER_HEIGHT+self.settings.MaxDepth*BLOCK_HEIGHT*n)
+		line(0, y, width, y)
 
 		cr.SetSourceRGB(0.4, 0.4, 0.4)
 		cr.MoveTo(3.0, float64(HEADER_HEIGHT + self.settings.MaxDepth * BLOCK_HEIGHT * (n + 1) - 5))
