@@ -51,8 +51,6 @@ type ContextViewer struct {
 }
 
 func (self *ContextViewer) Init(databaseFile *string) {
-	usr, _ := user.Current()
-
 	master, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		log.Fatal("Unable to create window:", err)
@@ -69,6 +67,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	   self.original_texts = {}
 	   self.tooltips = {}
 	*/
+	usr, _ := user.Current()
 	self.config.Gui.LastLogDir = usr.HomeDir
 
 	/*
@@ -77,7 +76,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	   except OSError:
 	       pass
 	*/
-	self.configFile = usr.HomeDir + "/.config/viewer.cfg"
+	self.configFile = usr.HomeDir + "/.config/context.cfg"
 	self.settings.RenderScale = 500.0
 	self.settings.RenderLen = 10.0
 	self.settings.MaxDepth = 7
@@ -88,9 +87,6 @@ func (self *ContextViewer) Init(databaseFile *string) {
 		self.config.Save(self.configFile)
 		gtk.MainQuit()
 	})
-
-	grid, err := gtk.GridNew()
-	master.Add(grid)
 
 	menuBar := self.__menu()
 	controls := self.__controlBox()
@@ -103,12 +99,14 @@ func (self *ContextViewer) Init(databaseFile *string) {
 		log.Fatal("Unable to create label:", err)
 	}
 
+	grid, err := gtk.GridNew()
 	grid.Attach(menuBar, 0, 0, 2, 1)
 	grid.Attach(controls, 0, 1, 2, 1)
 	grid.Attach(bookmarks, 0, 2, 1, 1)
 	grid.Attach(canvas, 1, 2, 1, 1)
 	grid.Attach(scrubber, 0, 3, 2, 1)
 	grid.Attach(status, 0, 4, 2, 1)
+	master.Add(grid)
 
 	self.status = status
 
