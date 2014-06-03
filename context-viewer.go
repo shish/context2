@@ -79,7 +79,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	       pass
 	*/
 	self.configFile = usr.HomeDir + "/.config/context.cfg"
-	self.settings.RenderScale = 500.0
+	self.settings.RenderScale = 50.0
 	self.settings.RenderLen = 10.0
 	self.settings.MaxDepth = 7
 
@@ -576,7 +576,8 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	}
 
 	cr.SetSourceRGB(0, 0, 0)
-	cr.Rectangle(0, 0, width, SCRUBBER_HEIGHT)
+	cr.SetLineWidth(1.0)
+	cr.Rectangle(0.5, 0.5, width-1, SCRUBBER_HEIGHT-1)
 	cr.Stroke()
 
 	if self.data.LogEnd == self.data.LogStart { // only one event in the log o_O?
@@ -587,12 +588,11 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 
 	// arrow
 	start_rel := self.settings.RenderStart - self.data.LogStart
-	start := (start_rel / LogLength) * width
+	start := float64(int((start_rel / LogLength) * width))
 
 	end_rel := (self.settings.RenderStart + self.settings.RenderLen) - self.data.LogStart
-	end := (end_rel / LogLength) * width
+	end := float64(int((end_rel / LogLength) * width))
 
-	cr.SetLineWidth(1.0)
 	line := func(x1, y1, x2, y2 float64) {
 		cr.MoveTo(x1+0.5, y1+0.5)
 		cr.LineTo(x2+0.5, y2+0.5)
@@ -725,7 +725,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 	} else {
 		cr.SetSourceRGB(0.5, 0.3, 0.3)
 	}
-	cr.Rectangle(start_px, depth_px, length_px, BLOCK_HEIGHT)
+	cr.Rectangle(float64(int(start_px))+0.5, depth_px+0.5, float64(int(length_px)), BLOCK_HEIGHT)
 	cr.Stroke()
 
 	cr.Save()
