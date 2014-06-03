@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"time"
 	"log"
+	"sort"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	"github.com/shish/gotk3/gtk"
 )
@@ -177,6 +178,9 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 			self.Data = append(self.Data, event)
 		}
 	}
+
+	setStatus("Sorting events")
+	sort.Sort(ByType(self.Data))
 
 	log.Println("Loading: done")
 }

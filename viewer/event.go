@@ -71,3 +71,28 @@ func (self *Event) Text() string {
 func (self *Event) Length() float64 {
 	return self.EndTime - self.StartTime
 }
+
+// for sorting
+type ByType []Event
+type stringSlice []string
+var types = stringSlice{"LOCKW", "LOCKA", "START", "BMARK"}
+
+func (slice stringSlice) pos(value string) int {
+    for p, v := range slice {
+        if (v == value) {
+            return p
+        }
+    }
+    return -1
+}
+
+func (a ByType) Len() int           { return len(a) }
+func (a ByType) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByType) Less(i, j int) bool {
+	if a[i].StartType == a[j].StartType {
+		return a[i].StartTime < a[j].StartTime
+	} else {
+		return types.pos(a[i].StartType) < types.pos(a[j].StartType)
+	}
+	return false
+}
