@@ -9,7 +9,7 @@ import (
 	"time"
 	"log"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
-	"github.com/conformal/gotk3/gtk"
+	"github.com/shish/gotk3/gtk"
 )
 
 /*
@@ -121,6 +121,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, renderCutoff int, setStatus func(string)) {
 	log.Println("Loading: events")
 
+	setStatus("Loading...")
 	defer setStatus("")
 	s := renderStart
 	e := renderStart + renderLen

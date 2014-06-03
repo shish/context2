@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	// gtk
 	"github.com/conformal/gotk3/glib"
-	//"github.com/conformal/gotk3/gdk"
-	"github.com/conformal/gotk3/gtk"
+	"github.com/conformal/gotk3/gdk"
+	"github.com/shish/gotk3/gtk"
 	"github.com/shish/gotk3/cairo"
 	//"github.com/conformal/gotk3/pango"
 	"./viewer"
@@ -20,7 +20,7 @@ const (
 	VERSION         = "v0.0.0"
 	BLOCK_HEIGHT    = 20
 	HEADER_HEIGHT   = 20
-	SCRUBBER_HEIGHT = 20
+	SCRUBBER_HEIGHT = 21.0
 	MIN_PPS         = 1
 	MAX_PPS         = 5000
 	MIN_SEC         = 1
@@ -41,6 +41,8 @@ const (
 type ContextViewer struct {
 	// GUI
 	master     *gtk.Window
+	canvas     *gtk.DrawingArea
+	scrubber   *gtk.DrawingArea
 	status     *gtk.Statusbar
 	configFile string
 	config     viewer.Config
@@ -114,7 +116,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	master.ShowAll()
 
 	if databaseFile != nil {
-		go self.LoadFile(*databaseFile)
+		self.LoadFile(*databaseFile)
 	}
 }
 
@@ -129,11 +131,20 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		fileMenu, _ := gtk.MenuNew()
 
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
+		openButton.Connect("activate", func() {
+			//dialog := gtk.FileChooserNew()//title="Select a File", action=gtk.FILE_CHOOSER_ACTION_OPEN,
+       		//buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+		})
 		fileMenu.Append(openButton)
 
-		// TODO: separator
+		sep, _ := gtk.SeparatorMenuItemNew()
+		fileMenu.Append(sep)
 
 		quitButton, _ := gtk.MenuItemNewWithLabel("Quit")
+		quitButton.Connect("activate", func() {
+			self.config.Save(self.configFile)
+			gtk.MainQuit()
+		})
 		fileMenu.Append(quitButton)
 
 		return fileMenu
@@ -223,6 +234,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid.Add(l)
 
 	start, _ := gtk.SpinButtonNewWithRange(0, 9999999999999, 0.1)
+	start.SetValue(self.settings.RenderStart)
 	start.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: start =", sb.GetValue())
 		self.settings.RenderStart = sb.GetValue()
@@ -233,6 +245,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid.Add(l)
 
 	sec, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
+	sec.SetValue(self.settings.RenderLen)
 	sec.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: len =", sb.GetValue())
 		self.settings.RenderLen = sb.GetValue()
@@ -243,16 +256,19 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid.Add(l)
 
 	pps, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	pps.SetValue(self.settings.RenderScale)
 	pps.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: scale =", sb.GetValue())
 		self.settings.RenderScale = sb.GetValue()
+		self.canvas.QueueDraw()
 	})
 	grid.Add(pps)
 
 	l, _ = gtk.LabelNew("Cutoff (ms)")
 	grid.Add(l)
 
-	cutoff, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
+	cutoff.SetValue(self.settings.Cutoff)
 	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: cutoff =", sb.GetValue())
 		self.settings.Cutoff = sb.GetValue()
@@ -262,15 +278,19 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	l, _ = gtk.LabelNew("Coalesce (ms)")
 	grid.Add(l)
 
-	coalesce, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
+	coalesce.SetValue(self.settings.Coalesce)
 	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: coalesce =", sb.GetValue())
 		self.settings.Coalesce = sb.GetValue()
 	})
 	grid.Add(coalesce)
 
-	label, _ := gtk.ButtonNewWithLabel("Render!")
-	grid.Add(label)
+	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
+	renderButton.Connect("clicked", func(sb *gtk.Button) {
+		self.GoTo(self.settings.RenderStart)
+	})
+	grid.Add(renderButton)
 
 	return grid
 }
@@ -291,7 +311,7 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 		gvalue, _ := self.data.Bookmarks.GetValue(iter, 0)
 		value, _ := gvalue.GoValue()
 		fvalue := value.(float64)
-		log.Println("Nav: bookmark", fvalue)
+		log.Printf("Nav: bookmark %.2f\n", fvalue)
 		self.GoTo(fvalue)
 	})
 	bookmarkScrollPane.Add(bookmarkView)
@@ -375,6 +395,8 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	canvasScrollPane.Add(canvas)
 	grid.Add(canvasScrollPane)
 
+	self.canvas = canvas
+
 	return grid
 }
 
@@ -394,7 +416,8 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 		//width, _ := widget.GetSizeRequest()
 		self.RenderScrubber(cr, 500.0)
 	})
-	canvas.Connect("button-press-event", func() {
+	// GDK_BUTTON_PRESS_MASK
+	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		log.Println("Nav: scrubbing to")
 		/*
 		   width_fraction = float(e.x) / sc.winfo_width()
@@ -405,6 +428,8 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 		*/
 	})
 	grid.Add(canvas)
+
+	self.scrubber = canvas
 
 	return grid
 }
@@ -423,10 +448,26 @@ func (self *ContextViewer) ShowError(title, text string) {
 }
 
 func (self *ContextViewer) GoTo(ts float64) {
+	// TODO: highlight the first bookmark which is before or equal to RenderStart
 	if ts >= self.data.LogStart && ts <= self.data.LogEnd {
+		// If we go over the end of the log, step back a bit.
+		// Actually, that breaks "the bookmark is at the left edge of the screen"
+		//if ts + self.settings.RenderLen > self.data.LogEnd {
+		//	ts = self.data.LogEnd - self.settings.RenderLen
+		//}
+
 		self.settings.RenderStart = ts
-		self.Update()
-		// self.canvas.xview_moveto(0)
+		self.scrubber.QueueDraw()
+		self.data.Data = []viewer.Event{}
+		self.canvas.QueueDraw()
+		go func() {
+			self.data.LoadEvents(
+				self.settings.RenderStart, self.settings.RenderLen,
+				self.settings.Coalesce, self.config.Gui.RenderCutoff,
+				self.SetStatus)
+			self.canvas.QueueDraw()
+			// self.canvas.xview_moveto(0)
+		}()
 	}
 }
 
@@ -464,9 +505,12 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 		return
 	}
 
-	// load the data
+	// update title and scrubber, as those are ~instant
 	self.master.SetTitle(NAME + ": " + databaseFile)
+	self.scrubber.QueueDraw()
 
+	// render canvas with empty data first, then load the data
+	self.canvas.QueueDraw()
 	self.GoTo(self.data.LogStart)
 }
 
@@ -512,10 +556,6 @@ func (self *ContextViewer) LoadFile(givenFile string) {
        return text.split("\n")[0][:w / self.char_w]
 */
 
-func (self *ContextViewer) Update() {
-	self.data.LoadEvents(self.settings.RenderStart, self.settings.RenderLen, self.settings.Coalesce, self.config.Gui.RenderCutoff, self.SetStatus)
-}
-
 func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	cr.SetSourceRGB(1, 1, 1)
 	cr.Paint()
@@ -536,6 +576,8 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	}
 
 	cr.SetSourceRGB(0, 0, 0)
+	cr.Rectangle(0, 0, width, SCRUBBER_HEIGHT)
+	cr.Stroke()
 
 	if self.data.LogEnd == self.data.LogStart { // only one event in the log o_O?
 		return
@@ -550,9 +592,10 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	end_rel := (self.settings.RenderStart + self.settings.RenderLen) - self.data.LogStart
 	end := (end_rel / LogLength) * width
 
+	cr.SetLineWidth(1.0)
 	line := func(x1, y1, x2, y2 float64) {
-		cr.MoveTo(x1, y1)
-		cr.LineTo(x2, y2)
+		cr.MoveTo(x1 + 0.5, y1)
+		cr.LineTo(x2 + 0.5, y2)
 		cr.Stroke()
 	}
 
@@ -617,15 +660,14 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
 	_rs := self.settings.RenderStart
 	_rc := self.settings.Cutoff
-	_sc := 50.0 // self.scale
+	_sc := self.settings.RenderScale
 
-	eventCount := len(self.data.Data) - 1
+	//eventCount := len(self.data.Data) - 1
 	shown := 0
-	for n, event := range self.data.Data {
-		if n%1000 == 0 || n == eventCount {
-			self.SetStatus(fmt.Sprintf("Rendered %d events (%.0f%%)", n, float64(n)*100.0/float64(eventCount)))
-			//self.master.update()
-		}
+	for _, event := range self.data.Data {
+		//if n%50000 == 0 || n == eventCount {
+		//	self.SetStatus(fmt.Sprintf("Rendered %d events (%.0f%%)", n, float64(n)*100.0/float64(eventCount)))
+		//}
 		thread_idx := event.ThreadID
 
 		switch {
