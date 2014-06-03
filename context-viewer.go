@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"math"
 	// gtk
 	"github.com/conformal/gotk3/glib"
 	"github.com/conformal/gotk3/gdk"
@@ -588,10 +589,10 @@ func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 
 	// arrow
 	start_rel := self.settings.RenderStart - self.data.LogStart
-	start := float64(int((start_rel / LogLength) * width))
+	start := math.Floor((start_rel / LogLength) * width)
 
 	end_rel := (self.settings.RenderStart + self.settings.RenderLen) - self.data.LogStart
-	end := float64(int((end_rel / LogLength) * width))
+	end := math.Floor((end_rel / LogLength) * width)
 
 	line := func(x1, y1, x2, y2 float64) {
 		cr.MoveTo(x1+0.5, y1+0.5)
@@ -725,7 +726,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 	} else {
 		cr.SetSourceRGB(0.5, 0.3, 0.3)
 	}
-	cr.Rectangle(float64(int(start_px))+0.5, depth_px+0.5, float64(int(length_px)), BLOCK_HEIGHT)
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5, math.Floor(length_px), BLOCK_HEIGHT)
 	cr.Stroke()
 
 	cr.Save()
