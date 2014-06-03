@@ -638,7 +638,7 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 		line(x, 0, x, height)
 
 		cr.SetSourceRGB(0.4, 0.4, 0.4)
-		cr.MoveTo(x, HEADER_HEIGHT * 0.75)
+		cr.MoveTo(x, HEADER_HEIGHT * 0.70)
 		cr.ShowText(fmt.Sprintf(" +%.4f", float64(x) / width * self.settings.RenderLen))
 	}
 
@@ -656,6 +656,9 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 }
 
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
+	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+	cr.SetFontSize(10)
+
 	_rs := self.settings.RenderStart
 	_rc := self.settings.Cutoff
 	_sc := self.settings.RenderScale
@@ -702,6 +705,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 
 	start_px := (event.StartTime - offset_time) * scale_factor
 	length_px := event.Length() * scale_factor
+	depth_px := float64(HEADER_HEIGHT + (thread * (self.settings.MaxDepth * BLOCK_HEIGHT)) + (event.Depth*BLOCK_HEIGHT))
 
 	//	tip := fmt.Sprintf("%dms @%dms: %s\n%s",
 	//	   (event.EndTime - event.StartTime) * 1000,
@@ -713,10 +717,7 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 	} else {
 		cr.SetSourceRGB(1.0, 0.8, 0.8)
 	}
-	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.settings.MaxDepth*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
-		length_px, BLOCK_HEIGHT,
-	)
+	cr.Rectangle(start_px, depth_px, length_px, BLOCK_HEIGHT)
 	cr.Fill()
 
 	if ok {
@@ -724,29 +725,15 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 	} else {
 		cr.SetSourceRGB(0.5, 0.3, 0.3)
 	}
-	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.settings.MaxDepth*BLOCK_HEIGHT+event.Depth*BLOCK_HEIGHT),
-		length_px, BLOCK_HEIGHT,
-	)
+	cr.Rectangle(start_px, depth_px, length_px, BLOCK_HEIGHT)
 	cr.Stroke()
-	/*
-		t = self.canvas.create_text(
-		   start_px, HEADER_HEIGHT + thread * self.settings.MaxDepth * BLOCK_HEIGHT + event.Depth * BLOCK_HEIGHT + 3,
-		   text=self.truncate_text(" " + event.text, length_px), tags="event event_label", anchor=NW, width=length_px,
-		   font="TkFixedFont",
-		   state="disabled",
-		)
-		self.canvas.tag_raise(r)
-		self.canvas.tag_raise(t)
 
-		self.canvas.tag_bind(r, "<1>", lambda e: self._focus(r))
-
-		self.original_texts[t] = event.text
-		self.tooltips[r] = tip
-
-		self.canvas.tag_bind(r, "<Enter>", lambda e: self._ttip_show(r))
-		self.canvas.tag_bind(r, "<Leave>", lambda e: self._ttip_hide())
-	*/
+	cr.Save()
+	cr.Rectangle(start_px, depth_px, length_px, BLOCK_HEIGHT)  // TODO: add some padding on the right?
+	cr.Clip()
+	cr.MoveTo(start_px + 5, depth_px + BLOCK_HEIGHT * 0.70)
+	cr.ShowText(event.Text())
+	cr.Restore()
 }
 
 func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
