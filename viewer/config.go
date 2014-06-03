@@ -1,18 +1,27 @@
 package viewer
 
 import (
-	"log"
 	"code.google.com/p/gcfg"
+	"log"
 )
 
 type Config struct {
+	Render struct {
+		Start    float64
+		Length   float64 `gcfg:"render_len"`
+		Scale    float64 `gcfg:"scale"`
+		MaxDepth int     `gcfg:"max_depth"`
+		Cutoff   float64 `gcfg:"render_cutoff"`
+		Coalesce float64 `gcfg:"coalesce_threshold"`
+		Bookmarks bool
+	}
 	Gui struct {
-		RenderLen         int    `gcfg:"render_len"`
-		Scale             int    `gcfg:"scale"`
-		RenderCutoff      int    `gcfg:"render_cutoff"`
-		CoalesceThreshold int    `gcfg:"coalesce_threshold"`
-		RenderAuto        int    `gcfg:"render_auto"`
-		LastLogDir        string `gcfg:"last_log_dir"`
+		RenderAuto bool   `gcfg:"render_auto"`
+		LastLogDir string `gcfg:"last_log_dir"`
+	}
+	Bookmarks struct {
+		Absolute bool
+		Format   string
 	}
 }
 

@@ -112,6 +112,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 	self.conn, _ = sqlite3.Open(databaseFile)
 
 	self.Data = []Event{} // don't load the bulk of the data yet
+	self.LoadSettings()
 	self.LoadBookmarks()
 	self.LoadSummary()
 	self.LoadThreads()
@@ -119,14 +120,14 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, er
 	return databaseFile, nil
 }
 
-func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, renderCutoff int, setStatus func(string)) {
+func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, setStatus func(string)) {
 	log.Println("Loading: events")
 
 	setStatus("Loading...")
 	defer setStatus("")
 	s := renderStart
 	e := renderStart + renderLen
-	threshold := float64(coalesceThreshold) / 1000.0
+	threshold := float64(coalesce)
 	self.Data = []Event{} // free memory
 	threadLevelEnds := make([][]Event, len(self.Threads))
 
@@ -145,10 +146,10 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesceThreshold float64, 
 		SELECT *
 		FROM events
 		WHERE id IN (SELECT id FROM events_index WHERE end_time > ? AND start_time < ?)
-		AND (end_time - start_time) * 1000 >= ?
+		AND (end_time - start_time) >= ?
 		ORDER BY start_time ASC, end_time DESC
 	`
-	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, renderCutoff); err == nil; err = query.Next() {
+	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var event Event
 		event.NewEvent(query)
 		thread_idx := event.ThreadID // TODO: index into currently-active Threads, not all Threads
@@ -197,8 +198,23 @@ func (self *Data) LoadBookmarks() {
 		query.Scan(&startTime, &startText, &endText)
 
 		itemPtr := self.Bookmarks.Append()
-		text := fmt.Sprintf("%19.19s: %s", time.Unix(int64(startTime), 0), startText)
+		var timeText string
+		//if self.config.Gui.BookmarkAbsolute {
+			timeText = time.Unix(int64(startTime), 0).Format("2006/01/02 15:04:05")
+		//} else {
+		//	timeText = time.Unix(int64(startTime - self.LogStart), 0).Format("04:05")
+		//}
+		text := fmt.Sprintf("%s: %s", timeText, startText)
 		self.Bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{startTime, text})
+	}
+}
+
+func (self *Data) LoadSettings() {
+	log.Println("Loading: settings")
+
+	sql := "SELECT start_time, end_time FROM settings"
+	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+		query.Scan(&self.LogStart, &self.LogEnd)
 	}
 }
 
@@ -225,11 +241,6 @@ func (self *Data) LoadSummary() {
 		var val int
 		query.Scan(&val)
 		self.Summary = append(self.Summary, val)
-	}
-
-	sql = "SELECT start_time, end_time FROM settings"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		query.Scan(&self.LogStart, &self.LogEnd)
 	}
 }
 
