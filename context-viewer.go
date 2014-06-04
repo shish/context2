@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"flag"
 	"log"
 	"math"
-	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
+	"strconv"
 	// gtk
 	"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/glib"
@@ -41,6 +43,11 @@ const (
    #########################################################################
 */
 
+type Geometry struct {
+	w int
+	h int
+}
+
 type ContextViewer struct {
 	// GUI
 	master     *gtk.Window
@@ -54,16 +61,14 @@ type ContextViewer struct {
 	data     viewer.Data
 }
 
-func (self *ContextViewer) Init(databaseFile *string) {
+func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	master, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		log.Fatal("Unable to create window:", err)
 	}
 
 	master.SetTitle(NAME)
-	// Set the default window size.
-	// TODO: options.geometry
-	master.SetDefaultSize(1000, 600)
+	master.SetDefaultSize(geometry.w, geometry.h)
 	//master.SetDefaultIcon(nil)  // TODO: set icon
 
 	self.master = master
@@ -90,7 +95,7 @@ func (self *ContextViewer) Init(databaseFile *string) {
 
 	grid, err := gtk.GridNew()
 	grid.Attach(menuBar, 0, 0, 2, 1)
-	grid.Attach(controls, 0, 1, 2, 1)
+	if false {grid.Attach(controls, 0, 1, 2, 1)}
 	grid.Attach(bookmarks, 0, 2, 1, 1)
 	grid.Attach(canvas, 1, 2, 1, 1)
 	grid.Attach(scrubber, 0, 3, 2, 1)
@@ -758,23 +763,26 @@ func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offs
 */
 
 func main() {
+	var geometry = flag.String("g", "1000x800", "Set window geometry")
+	flag.Parse()
+
+	var w, h int
+	if geometry != nil {
+		parts := strings.SplitN(*geometry, "x", 2)
+		w, _ = strconv.Atoi(parts[0])
+		h, _ = strconv.Atoi(parts[1])
+		log.Println(w, h)
+	}
+
 	var filename *string
-
-	/*
-	   parser = OptionParser()
-	   parser.add_option("-g", "--geometry", dest="geometry", default="1000x600",
-	                     help="location and size of window", metavar="GM")
-	   (options, args) = parser.parse_args(argv)
-	*/
-
-	if len(os.Args) > 1 {
-		filename = &os.Args[1]
+	if len(flag.Args()) >= 1 {
+		filename = &flag.Args()[0]
 	}
 
 	gtk.Init(nil)
 
 	cv := ContextViewer{}
-	cv.Init(filename)
+	cv.Init(filename, Geometry{w, h})
 
 	gtk.Main()
 }
