@@ -21,6 +21,7 @@ import (
 
 type Data struct {
 	conn      *sqlite3.Conn
+	config    Config
 	Data      []Event
 	Bookmarks *gtk.ListStore
 	Summary   []int
@@ -54,8 +55,10 @@ func VersionCheck(databaseFile string) bool {
 	return true
 }
 
-func (self *Data) LoadFile(givenFile string, setStatus func(string)) (string, error) {
+func (self *Data) LoadFile(givenFile string, setStatus func(string), config Config) (string, error) {
 	log.Println("Loading: file", givenFile)
+
+	self.config = config
 
 	/*
 	   path, _ext = os.path.splitext(givenFile)
@@ -198,12 +201,15 @@ func (self *Data) LoadBookmarks() {
 		query.Scan(&startTime, &startText, &endText)
 
 		itemPtr := self.Bookmarks.Append()
-		var timeText string
-		//if self.config.Gui.BookmarkAbsolute {
-			timeText = time.Unix(int64(startTime), 0).Format("2006/01/02 15:04:05")
-		//} else {
-		//	timeText = time.Unix(int64(startTime - self.LogStart), 0).Format("04:05")
-		//}
+
+		var timePos float64
+		if self.config.Bookmarks.Absolute {
+			timePos = startTime
+		} else {
+			timePos = startTime - self.LogStart
+		}
+
+		timeText := time.Unix(int64(timePos), 0).Format(self.config.Bookmarks.Format)
 		text := fmt.Sprintf("%s: %s", timeText, startText)
 		self.Bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{startTime, text})
 	}

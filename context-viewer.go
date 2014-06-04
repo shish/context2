@@ -67,14 +67,9 @@ func (self *ContextViewer) Init(databaseFile *string) {
 	//master.SetDefaultIcon(nil)  // TODO: set icon
 
 	self.master = master
+
 	usr, _ := user.Current()
-	self.config.Gui.LastLogDir = usr.HomeDir
-
 	self.configFile = usr.HomeDir + "/.config/context2.cfg"
-	self.config.Render.Scale = 50.0
-	self.config.Render.Length = 20.0
-	self.config.Render.MaxDepth = 7
-
 	self.config.Load(self.configFile)
 
 	master.Connect("destroy", func() {
@@ -157,7 +152,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 	}())
 	menuBar.Append(fileButton)
 
-	viewButton, err := gtk.MenuItemNewWithLabel("View")
+	viewButton, _ := gtk.MenuItemNewWithLabel("View")
 	viewButton.SetSubmenu(func() *gtk.Menu {
 		viewMenu, _ := gtk.MenuNew()
 
@@ -189,7 +184,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 	menuBar.Append(viewButton)
 
 	/*
-		analyseButton, err := gtk.MenuItemNewWithLabel("Analyse")
+		analyseButton, _ := gtk.MenuItemNewWithLabel("Analyse")
 		analyseButton.SetSubmenu(func() *gtk.Menu {
 			analyseMenu, _ := gtk.MenuNew()
 
@@ -201,7 +196,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		menuBar.Append(analyseButton)
 	*/
 
-	helpButton, err := gtk.MenuItemNewWithLabel("Help")
+	helpButton, _ := gtk.MenuItemNewWithLabel("Help")
 	helpButton.SetSubmenu(func() *gtk.Menu {
 		helpMenu, _ := gtk.MenuNew()
 
@@ -511,7 +506,7 @@ func (self *ContextViewer) GoTo(ts float64) {
 */
 
 func (self *ContextViewer) LoadFile(givenFile string) {
-	databaseFile, err := self.data.LoadFile(givenFile, self.SetStatus)
+	databaseFile, err := self.data.LoadFile(givenFile, self.SetStatus, self.config)
 	if err != nil {
 		self.ShowError("Error", fmt.Sprintf("Error loading '%s':\n%s", givenFile, err))
 		return
