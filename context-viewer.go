@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"math"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -34,14 +35,9 @@ const (
 //if VERSION.endswith("-demo"):
 //    NAME += ": Non-commercial / Evaluation Version"
 
-// TODO: add ./ to path so context-compiler can be found
-//os.environ["PATH"] = os.environ.get("PATH", "") + ":%s" % os.path.dirname(sys.argv[0])
-
-/*
-   #########################################################################
-   # GUI setup
-   #########################################################################
-*/
+/**********************************************************************
+* Structs
+**********************************************************************/
 
 type Geometry struct {
 	w int
@@ -60,6 +56,10 @@ type ContextViewer struct {
 	// data
 	data     viewer.Data
 }
+
+/**********************************************************************
+* GUI Setup
+**********************************************************************/
 
 func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	master, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
@@ -504,11 +504,9 @@ func (self *ContextViewer) GoTo(ts float64) {
 	}
 }
 
-/*
-   #########################################################################
-   # Open file
-   #########################################################################
-*/
+/**********************************************************************
+* Open File
+**********************************************************************/
 
 func (self *ContextViewer) LoadFile(givenFile string) {
 	databaseFile, err := self.data.LoadFile(givenFile, self.SetStatus, self.config)
@@ -526,11 +524,9 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	self.GoTo(self.data.LogStart)
 }
 
-/*
-   #########################################################################
-   # Rendering
-   #########################################################################
-*/
+/**********************************************************************
+* Rendering
+**********************************************************************/
 
 func (self *ContextViewer) RenderScrubber(cr *cairo.Context, width float64) {
 	cr.SetSourceRGB(1, 1, 1)
@@ -762,7 +758,17 @@ func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offs
        self.canvas.tag_raise(t2)
 */
 
+/**********************************************************************
+* Main
+**********************************************************************/
+
 func main() {
+	// add ./ to path so context-compiler can be found
+	path := os.Getenv("PATH")
+	newPath := filepath.Dir(os.Args[0]) + ":" + path
+	_ = os.Setenv("PATH", newPath)
+	fmt.Println(newPath)
+
 	var geometry = flag.String("g", "1000x800", "Set window geometry")
 	flag.Parse()
 
