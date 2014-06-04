@@ -50,6 +50,7 @@ type ContextViewer struct {
 	canvas     *gtk.DrawingArea
 	scrubber   *gtk.DrawingArea
 	status     *gtk.Statusbar
+	bookmarkPanel *gtk.Grid
 	configFile string
 	config     viewer.Config
 
@@ -107,10 +108,15 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	grid.Attach(status, 0, 4, 2, 1)
 	master.Add(grid)
 
+	self.bookmarkPanel = bookmarks
 	self.status = status
 
 	self.controls.active = true
 	master.ShowAll()
+
+	if !self.config.Gui.BookmarkPanel {
+		self.bookmarkPanel.Hide()
+	}
 
 	if databaseFile != nil {
 		self.LoadFile(*databaseFile)
@@ -167,28 +173,66 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 	viewButton.SetSubmenu(func() *gtk.Menu {
 		viewMenu, _ := gtk.MenuNew()
 
-		// TODO: checkboxes
-		showBookmarkPanelButton, _ := gtk.MenuItemNewWithLabel("Show Bookmark Panel")
+		showBookmarkPanelButton, _ := gtk.CheckMenuItemNewWithLabel("Show Bookmark Panel")
+		showBookmarkPanelButton.SetActive(self.config.Gui.BookmarkPanel)
+		showBookmarkPanelButton.Connect("activate", func() {
+			self.config.Gui.BookmarkPanel = showBookmarkPanelButton.GetActive()
+			if self.config.Gui.BookmarkPanel {
+				self.bookmarkPanel.Show()
+			} else {
+				self.bookmarkPanel.Hide()
+			}
+		})
 		viewMenu.Append(showBookmarkPanelButton)
 
-		showBookmarksButton, _ := gtk.MenuItemNewWithLabel("Render Bookmarks")
+		showBookmarksButton, _ := gtk.CheckMenuItemNewWithLabel("Render Bookmarks")
+		showBookmarksButton.SetActive(self.config.Render.Bookmarks)
+		showBookmarksButton.Connect("activate", func() {
+			self.config.Render.Bookmarks = showBookmarksButton.GetActive()
+			self.canvas.QueueDraw()
+		})
 		viewMenu.Append(showBookmarksButton)
-
-		autoRenderButton, _ := gtk.MenuItemNewWithLabel("Auto-render")
-		viewMenu.Append(autoRenderButton)
 
 		sep, _ := gtk.SeparatorMenuItemNew()
 		viewMenu.Append(sep)
 
-		// TODO: radio submenu
-		bookmarksDateButton, _ := gtk.MenuItemNewWithLabel("Date")
-		viewMenu.Append(bookmarksDateButton)
+		formatButton, _ := gtk.MenuItemNewWithLabel("Bookmark Time Format")
+		formatButton.SetSubmenu(func() *gtk.Menu {
+			formatMenu, _ := gtk.MenuNew()
 
-		bookmarksTimeButton, _ := gtk.MenuItemNewWithLabel("Time")
-		viewMenu.Append(bookmarksTimeButton)
+			// TODO: submenu
+			grp := &glib.SList{}
 
-		bookmarksOffsetButton, _ := gtk.MenuItemNewWithLabel("Offset")
-		viewMenu.Append(bookmarksOffsetButton)
+			bookmarksDateButton, _ := gtk.RadioMenuItemNewWithLabel(grp, "Date")
+			grp, _ = bookmarksDateButton.GetGroup()
+			bookmarksDateButton.Connect("activate", func() {
+				self.config.Bookmarks.Absolute = true
+				self.config.Bookmarks.Format = "2006/01/02 15:04:05"
+				self.data.LoadBookmarks()
+			})
+			formatMenu.Append(bookmarksDateButton)
+
+			bookmarksTimeButton, _ := gtk.RadioMenuItemNewWithLabel(grp, "Time")
+			grp, _ = bookmarksTimeButton.GetGroup()
+			bookmarksTimeButton.Connect("activate", func() {
+				self.config.Bookmarks.Absolute = true
+				self.config.Bookmarks.Format = "15:04:05"
+				self.data.LoadBookmarks()
+			})
+			formatMenu.Append(bookmarksTimeButton)
+
+			bookmarksOffsetButton, _ := gtk.RadioMenuItemNewWithLabel(grp, "Offset")
+			grp, _ = bookmarksOffsetButton.GetGroup()
+			bookmarksOffsetButton.Connect("activate", func() {
+				self.config.Bookmarks.Absolute = false
+				self.config.Bookmarks.Format = "04:05"
+				self.data.LoadBookmarks()
+			})
+			formatMenu.Append(bookmarksOffsetButton)
+
+			return formatMenu
+		}())
+		viewMenu.Add(formatButton)
 
 		return viewMenu
 	}())

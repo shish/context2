@@ -18,6 +18,7 @@ type Config struct {
 		Bookmarks bool
 	}
 	Gui struct {
+		BookmarkPanel bool
 		RenderAuto bool
 		LastLogDir string
 	}
@@ -38,6 +39,7 @@ func (self *Config) Default() {
 	self.Render.Coalesce = 0.0
 	self.Render.Bookmarks = false
 
+	self.Gui.BookmarkPanel = true
 	self.Gui.RenderAuto = true
 	self.Gui.LastLogDir = usr.HomeDir
 
