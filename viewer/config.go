@@ -55,14 +55,14 @@ func (self *Config) Load(configFile string) {
 		return
 	}
 
-	_, err = fp.Read(buf)
+	n, err := fp.Read(buf)
 	if err != nil {
 		log.Printf("Error loading settings from %s: %s\n", configFile, err)
 		self.Default()
 		return
 	}
 
-	err = json.Unmarshal(buf, self)
+	err = json.Unmarshal(buf[:n], self)
 	if err != nil {
 		log.Printf("Error loading settings from %s: %s\n", configFile, err)
 		self.Default()
