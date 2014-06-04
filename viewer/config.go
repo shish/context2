@@ -9,18 +9,18 @@ import (
 
 type Config struct {
 	Render struct {
-		Start    float64
-		Length   float64
-		Scale    float64
-		MaxDepth int
-		Cutoff   float64
-		Coalesce float64
+		Start     float64
+		Length    float64
+		Scale     float64
+		MaxDepth  int
+		Cutoff    float64
+		Coalesce  float64
 		Bookmarks bool
 	}
 	Gui struct {
 		BookmarkPanel bool
-		RenderAuto bool
-		LastLogDir string
+		RenderAuto    bool
+		LastLogDir    string
 	}
 	Bookmarks struct {
 		Absolute bool

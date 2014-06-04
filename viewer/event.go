@@ -1,8 +1,8 @@
 package viewer
 
 import (
-	"fmt"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
+	"fmt"
 )
 
 /*
@@ -12,13 +12,13 @@ import (
 */
 type Event struct {
 	id             int
-	ThreadID      int
+	ThreadID       int
 	start_location string
 	end_location   string
-	StartTime     float64
-	EndTime       float64
-	StartType     string
-	EndType       string
+	StartTime      float64
+	EndTime        float64
+	StartType      string
+	EndType        string
 	start_text     string
 	end_text       string
 	count          int
@@ -75,19 +75,20 @@ func (self *Event) Length() float64 {
 // for sorting
 type ByType []Event
 type stringSlice []string
+
 var types = stringSlice{"LOCKW", "LOCKA", "START", "BMARK"}
 
 func (slice stringSlice) pos(value string) int {
-    for p, v := range slice {
-        if (v == value) {
-            return p
-        }
-    }
-    return -1
+	for p, v := range slice {
+		if v == value {
+			return p
+		}
+	}
+	return -1
 }
 
-func (a ByType) Len() int           { return len(a) }
-func (a ByType) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByType) Len() int      { return len(a) }
+func (a ByType) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByType) Less(i, j int) bool {
 	if a[i].StartType == a[j].StartType {
 		return a[i].StartTime < a[j].StartTime

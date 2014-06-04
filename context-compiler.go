@@ -120,16 +120,16 @@ func compileLog(logFile string, databaseFile string) {
 	thread_name_to_id := make(map[string]int)
 	thread_count := 0
 	/*
-	    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
-		for {
-			err := query.Next()
-			if err == io.EOF {
-				break
+		    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
+			for {
+				err := query.Next()
+				if err == io.EOF {
+					break
+				}
+				var node, process, thread string
+				query.Scan(node, process, thread)
+				//thread_names = append(thread_names, )
 			}
-			var node, process, thread string
-			query.Scan(node, process, thread)
-			//thread_names = append(thread_names, )
-		}
 	*/
 
 	sqlInsertBookmark, _ := db.Prepare(`
@@ -256,7 +256,7 @@ func compileLog(logFile string, databaseFile string) {
         SELECT id, start_time-?, end_time-?
         FROM events
 	`, firstEventStart, firstEventStart)
-    // WHERE start_time IS NOT NULL AND end_time IS NOT NULL
+	// WHERE start_time IS NOT NULL AND end_time IS NOT NULL
 
 	set_status("Writing settings...")
 

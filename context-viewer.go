@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"log"
 	"math"
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
 	// gtk
 	"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/glib"
@@ -46,20 +46,20 @@ type Geometry struct {
 
 type ContextViewer struct {
 	// GUI
-	master     *gtk.Window
-	canvas     *gtk.DrawingArea
-	scrubber   *gtk.DrawingArea
-	status     *gtk.Statusbar
+	master        *gtk.Window
+	canvas        *gtk.DrawingArea
+	scrubber      *gtk.DrawingArea
+	status        *gtk.Statusbar
 	bookmarkPanel *gtk.Grid
-	configFile string
-	config     viewer.Config
+	configFile    string
+	config        viewer.Config
 
 	// data
-	data     viewer.Data
+	data viewer.Data
 
 	controls struct {
 		active bool
-		start *gtk.SpinButton
+		start  *gtk.SpinButton
 	}
 }
 
@@ -139,14 +139,14 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 			//buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
 
 			/*
-			   filename = askopenfilename(
-				   filetypes=[
-					   ("All Supported Types", "*.ctxt *.cbin"),
-					   ("Context Text", "*.ctxt"),
-					   ("Context Binary", "*.cbin")
-				   ],
-				   initialdir=self._last_log_dir
-			   )
+				   filename = askopenfilename(
+					   filetypes=[
+						   ("All Supported Types", "*.ctxt *.cbin"),
+						   ("Context Text", "*.ctxt"),
+						   ("Context Binary", "*.cbin")
+					   ],
+					   initialdir=self._last_log_dir
+				   )
 			*/
 			if filename != nil {
 				self.config.Gui.LastLogDir = filepath.Dir(*filename)
@@ -273,11 +273,11 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		docButton, _ := gtk.MenuItemNewWithLabel("Documentation")
 		// TODO
 		/*
-			   t.title("Context Documentation")
-			   tx = Text(t)
-			   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
-			   tx.configure(state="disabled")
-			   tx.focus_set()
+		   t.title("Context Documentation")
+		   tx = Text(t)
+		   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
+		   tx.configure(state="disabled")
+		   tx.focus_set()
 		*/
 		helpMenu.Append(docButton)
 
@@ -300,10 +300,10 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	// TODO: display as date, or offset, rather than unix timestamp?
 	start, _ := gtk.SpinButtonNewWithRange(0, 0, 0.1)
 	start.Connect("value-changed", func(sb *gtk.SpinButton) {
-		//if self.controls.active {
+		if self.controls.active {
 			log.Println("Settings: start =", sb.GetValue())
 			self.GoTo(sb.GetValue())
-		//}
+		}
 	})
 	gridTop.Add(start)
 	self.controls.start = start
@@ -481,17 +481,17 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	*/
 	// TODO: click to focus
 	/*
-   def _focus(self, r):
-       # scale the canvas so that the (selected item width + padding == screen width)
-       view_w = self.canvas.winfo_width()
-       rect_w = max(self.canvas.bbox(r)[2] - self.canvas.bbox(r)[0] + HEADER_HEIGHT, 10)
-       self.scale_view(n=float(view_w) / rect_w)
+	   def _focus(self, r):
+	       # scale the canvas so that the (selected item width + padding == screen width)
+	       view_w = self.canvas.winfo_width()
+	       rect_w = max(self.canvas.bbox(r)[2] - self.canvas.bbox(r)[0] + HEADER_HEIGHT, 10)
+	       self.scale_view(n=float(view_w) / rect_w)
 
-       # move the view so that the selected (item x1 = left edge of screen + padding)
-       canvas_w = self.canvas.bbox("grid")[2]
-       rect_x = self.canvas.bbox(r)[0] - 5
-       self.canvas.xview_moveto(float(rect_x) / canvas_w)
-       */
+	       # move the view so that the selected (item x1 = left edge of screen + padding)
+	       canvas_w = self.canvas.bbox("grid")[2]
+	       rect_x = self.canvas.bbox(r)[0] - 5
+	       self.canvas.xview_moveto(float(rect_x) / canvas_w)
+	*/
 
 	canvasScrollPane.Add(canvas)
 	grid.Add(canvasScrollPane)
@@ -552,7 +552,7 @@ func (self *ContextViewer) ShowError(title, text string) {
 
 func (self *ContextViewer) GoTo(ts float64) {
 	self.controls.active = false
-	defer func() {self.controls.active = true}()
+	defer func() { self.controls.active = true }()
 
 	// TODO: highlight the first bookmark which is before or equal to RenderStart
 	if ts >= self.data.LogStart && ts <= self.data.LogEnd {

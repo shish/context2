@@ -1,17 +1,17 @@
 package viewer
 
 import (
+	"bufio"
+	"code.google.com/p/go-sqlite/go1/sqlite3"
 	"fmt"
-	"strings"
+	"github.com/shish/gotk3/gtk"
+	"log"
 	"os"
 	"os/exec"
-	"bufio"
-	"time"
-	"log"
-	"sort"
 	"path/filepath"
-	"code.google.com/p/go-sqlite/go1/sqlite3"
-	"github.com/shish/gotk3/gtk"
+	"sort"
+	"strings"
+	"time"
 )
 
 type Data struct {
@@ -26,9 +26,9 @@ type Data struct {
 }
 
 func splitExt(path string) (root, ext string) {
-    ext = filepath.Ext(path)
-    root = path[:len(path)-len(ext)]
-    return
+	ext = filepath.Ext(path)
+	root = path[:len(path)-len(ext)]
+	return
 }
 
 func VersionCheck(databaseFile string) bool {

@@ -2,8 +2,8 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type LogEvent struct {
