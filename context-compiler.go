@@ -133,8 +133,8 @@ func compileLog(logFile string, databaseFile string) {
 	*/
 
 	sqlInsertBookmark, _ := db.Prepare(`
-        INSERT INTO events(thread_id, start_location, start_time, start_type, start_text)
-        VALUES(?, ?, ?, ?, ?)
+        INSERT INTO events(thread_id, start_location, start_time, start_type, start_text, end_time)
+        VALUES(?, ?, ?, ?, ?, ?)
     `)
 	sqlInsertEvent, _ := db.Prepare(`
         INSERT INTO events(
@@ -186,7 +186,7 @@ func compileLog(logFile string, databaseFile string) {
 
 		case e.Type == "BMARK":
 			sqlInsertBookmark.Exec(
-				thread.id, e.Location, e.Timestamp, e.Type, e.Text)
+				thread.id, e.Location, e.Timestamp, e.Type, e.Text, e.Timestamp)
 
 		// begin blocking wait for lock
 		case e.Type == "LOCKW":
@@ -255,8 +255,8 @@ func compileLog(logFile string, databaseFile string) {
         INSERT INTO events_index
         SELECT id, start_time-?, end_time-?
         FROM events
-        WHERE start_time IS NOT NULL AND end_time IS NOT NULL
 	`, firstEventStart, firstEventStart)
+    // WHERE start_time IS NOT NULL AND end_time IS NOT NULL
 
 	set_status("Writing settings...")
 
