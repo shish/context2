@@ -95,7 +95,7 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 
 	grid, err := gtk.GridNew()
 	grid.Attach(menuBar, 0, 0, 2, 1)
-	if false {grid.Attach(controls, 0, 1, 2, 1)}
+	grid.Attach(controls, 0, 1, 2, 1)
 	grid.Attach(bookmarks, 0, 2, 1, 1)
 	grid.Attach(canvas, 1, 2, 1, 1)
 	grid.Attach(scrubber, 0, 3, 2, 1)
@@ -239,14 +239,13 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 }
 
 func (self *ContextViewer) __controlBox() *gtk.Grid {
-	grid, err := gtk.GridNew()
-	if err != nil {
-		log.Fatal("Unable to create grid:", err)
-	}
-	grid.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	//-----------------------------------------------------------------
 
-	l, _ := gtk.LabelNew("Start")
-	grid.Add(l)
+	gridTop, _ := gtk.GridNew()
+	gridTop.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+
+	l, _ := gtk.LabelNew(" Start ")
+	gridTop.Add(l)
 
 	// TODO: have GoTo() affect this
 	// TODO: display as date, or offset, rather than unix timestamp?
@@ -256,10 +255,10 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 		log.Println("Settings: start =", sb.GetValue())
 		self.config.Render.Start = sb.GetValue()
 	})
-	grid.Add(start)
+	gridTop.Add(start)
 
-	l, _ = gtk.LabelNew("Seconds")
-	grid.Add(l)
+	l, _ = gtk.LabelNew("  Seconds ")
+	gridTop.Add(l)
 
 	sec, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
 	sec.SetValue(self.config.Render.Length)
@@ -267,10 +266,10 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 		log.Println("Settings: len =", sb.GetValue())
 		self.config.Render.Length = sb.GetValue()
 	})
-	grid.Add(sec)
+	gridTop.Add(sec)
 
-	l, _ = gtk.LabelNew("Pixels Per Second")
-	grid.Add(l)
+	l, _ = gtk.LabelNew("  Pixels Per Second ")
+	gridTop.Add(l)
 
 	pps, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
 	pps.SetValue(self.config.Render.Scale)
@@ -279,10 +278,15 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 		self.config.Render.Scale = sb.GetValue()
 		self.canvas.QueueDraw()
 	})
-	grid.Add(pps)
+	gridTop.Add(pps)
 
-	l, _ = gtk.LabelNew("Cutoff (ms)")
-	grid.Add(l)
+	//-----------------------------------------------------------------
+
+	gridBot, _ := gtk.GridNew()
+	gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+
+	l, _ = gtk.LabelNew(" Cutoff (ms) ")
+	gridBot.Add(l)
 
 	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
 	cutoff.SetValue(self.config.Render.Cutoff * 1000)
@@ -290,10 +294,10 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 		log.Println("Settings: cutoff =", sb.GetValue())
 		self.config.Render.Cutoff = sb.GetValue() / 1000
 	})
-	grid.Add(cutoff)
+	gridBot.Add(cutoff)
 
-	l, _ = gtk.LabelNew("Coalesce (ms)")
-	grid.Add(l)
+	l, _ = gtk.LabelNew("  Coalesce (ms) ")
+	gridBot.Add(l)
 
 	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
 	coalesce.SetValue(self.config.Render.Coalesce * 1000)
@@ -301,13 +305,20 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 		log.Println("Settings: coalesce =", sb.GetValue())
 		self.config.Render.Coalesce = sb.GetValue() / 1000
 	})
-	grid.Add(coalesce)
+	gridBot.Add(coalesce)
 
 	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
 	renderButton.Connect("clicked", func(sb *gtk.Button) {
 		self.GoTo(self.config.Render.Start)
 	})
-	grid.Add(renderButton)
+	gridBot.Add(renderButton)
+
+	//-----------------------------------------------------------------
+
+	grid, _ := gtk.GridNew()
+	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
+	grid.Add(gridTop)
+	grid.Add(gridBot)
 
 	return grid
 }
@@ -377,7 +388,7 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
 	canvasScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
-	canvasScrollPane.SetSizeRequest(250, 200)
+	canvasScrollPane.SetSizeRequest(200, 200)
 
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetHExpand(true)
@@ -657,8 +668,7 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 
 		case event.StartType == "BMARK":
 			if self.config.Render.Bookmarks {
-				// TODO: render bookmark
-				// self.ShowBookmark(cr, &event, _rs)
+				self.ShowBookmark(cr, &event, _rs, _sc)
 			}
 
 		case event.StartType == "LOCKW" || event.StartType == "LOCKA":
@@ -727,6 +737,19 @@ func (self *ContextViewer) ShowLock(cr *cairo.Context, event *viewer.Event, offs
 	cr.Restore()
 }
 
+func (self *ContextViewer) ShowBookmark(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64) {
+	start_px := math.Floor((event.StartTime - offset_time) * scale_factor)
+	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.MaxDepth*BLOCK_HEIGHT)
+
+	cr.SetSourceRGB(1.0, 0.5, 0.0)
+	cr.MoveTo(start_px+0.5, HEADER_HEIGHT)
+	cr.LineTo(start_px+0.5, height)
+	cr.Stroke()
+
+	cr.MoveTo(start_px+5, height-5)
+	cr.ShowText(event.Text())
+}
+
 /*
 	//	tip := fmt.Sprintf("%dms @%dms: %s\n%s",
 	//	   (event.EndTime - event.StartTime) * 1000,
@@ -767,9 +790,8 @@ func main() {
 	path := os.Getenv("PATH")
 	newPath := filepath.Dir(os.Args[0]) + ":" + path
 	_ = os.Setenv("PATH", newPath)
-	fmt.Println(newPath)
 
-	var geometry = flag.String("g", "1000x800", "Set window geometry")
+	var geometry = flag.String("g", "800x600", "Set window geometry")
 	flag.Parse()
 
 	var w, h int
@@ -777,7 +799,6 @@ func main() {
 		parts := strings.SplitN(*geometry, "x", 2)
 		w, _ = strconv.Atoi(parts[0])
 		h, _ = strconv.Atoi(parts[1])
-		log.Println(w, h)
 	}
 
 	var filename *string
