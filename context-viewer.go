@@ -55,6 +55,11 @@ type ContextViewer struct {
 
 	// data
 	data     viewer.Data
+
+	controls struct {
+		active bool
+		start *gtk.SpinButton
+	}
 }
 
 /**********************************************************************
@@ -104,6 +109,7 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 
 	self.status = status
 
+	self.controls.active = true
 	master.ShowAll()
 
 	if databaseFile != nil {
@@ -247,15 +253,16 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	l, _ := gtk.LabelNew(" Start ")
 	gridTop.Add(l)
 
-	// TODO: have GoTo() affect this
 	// TODO: display as date, or offset, rather than unix timestamp?
-	start, _ := gtk.SpinButtonNewWithRange(0, 9999999999999, 0.1)
-	start.SetValue(self.config.Render.Start)
+	start, _ := gtk.SpinButtonNewWithRange(0, 0, 0.1)
 	start.Connect("value-changed", func(sb *gtk.SpinButton) {
-		log.Println("Settings: start =", sb.GetValue())
-		self.config.Render.Start = sb.GetValue()
+		//if self.controls.active {
+			log.Println("Settings: start =", sb.GetValue())
+			self.GoTo(sb.GetValue())
+		//}
 	})
 	gridTop.Add(start)
+	self.controls.start = start
 
 	l, _ = gtk.LabelNew("  Seconds ")
 	gridTop.Add(l)
@@ -263,8 +270,11 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	sec, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
 	sec.SetValue(self.config.Render.Length)
 	sec.Connect("value-changed", func(sb *gtk.SpinButton) {
-		log.Println("Settings: len =", sb.GetValue())
-		self.config.Render.Length = sb.GetValue()
+		if self.controls.active {
+			log.Println("Settings: len =", sb.GetValue())
+			self.config.Render.Length = sb.GetValue()
+			self.GoTo(self.config.Render.Start)
+		}
 	})
 	gridTop.Add(sec)
 
@@ -274,9 +284,11 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	pps, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
 	pps.SetValue(self.config.Render.Scale)
 	pps.Connect("value-changed", func(sb *gtk.SpinButton) {
-		log.Println("Settings: scale =", sb.GetValue())
-		self.config.Render.Scale = sb.GetValue()
-		self.canvas.QueueDraw()
+		if self.controls.active {
+			log.Println("Settings: scale =", sb.GetValue())
+			self.config.Render.Scale = sb.GetValue()
+			self.canvas.QueueDraw()
+		}
 	})
 	gridTop.Add(pps)
 
@@ -293,6 +305,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: cutoff =", sb.GetValue())
 		self.config.Render.Cutoff = sb.GetValue() / 1000
+		self.GoTo(self.config.Render.Start)
 	})
 	gridBot.Add(cutoff)
 
@@ -304,6 +317,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: coalesce =", sb.GetValue())
 		self.config.Render.Coalesce = sb.GetValue() / 1000
+		self.GoTo(self.config.Render.Start)
 	})
 	gridBot.Add(coalesce)
 
@@ -318,7 +332,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
 	grid.Add(gridTop)
-	grid.Add(gridBot)
+	//grid.Add(gridBot)
 
 	return grid
 }
@@ -493,6 +507,9 @@ func (self *ContextViewer) ShowError(title, text string) {
 }
 
 func (self *ContextViewer) GoTo(ts float64) {
+	self.controls.active = false
+	defer func() {self.controls.active = true}()
+
 	// TODO: highlight the first bookmark which is before or equal to RenderStart
 	if ts >= self.data.LogStart && ts <= self.data.LogEnd {
 		// If we go over the end of the log, step back a bit.
@@ -501,7 +518,9 @@ func (self *ContextViewer) GoTo(ts float64) {
 		//	ts = self.data.LogEnd - self.config.Render.Len
 		//}
 
+		self.controls.start.SetValue(ts)
 		self.config.Render.Start = ts
+		self.scrubber.QueueDraw()
 		self.data.Data = []viewer.Event{}
 		// TODO: reset canvas scroll position
 		self.canvas.QueueDraw()
@@ -527,7 +546,10 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	}
 
 	// update title and scrubber, as those are ~instant
+	self.controls.active = false
 	self.master.SetTitle(NAME + ": " + databaseFile)
+	self.controls.start.SetRange(self.data.LogStart, self.data.LogEnd)
+	self.controls.active = true
 	self.scrubber.QueueDraw()
 
 	// render canvas with empty data first, then load the data
