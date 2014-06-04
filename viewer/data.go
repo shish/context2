@@ -147,7 +147,10 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 		SELECT *
 		FROM events
 		WHERE id IN (SELECT id FROM events_index WHERE end_time > ? AND start_time < ?)
-		AND (end_time - start_time) >= ?
+		AND (
+			(end_time - start_time) >= ? OR
+			start_type = "BMARK"
+		)
 		ORDER BY start_time ASC, end_time DESC
 	`
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
