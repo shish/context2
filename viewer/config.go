@@ -1,23 +1,25 @@
 package viewer
 
 import (
-	"code.google.com/p/gcfg"
+	"encoding/json"
 	"log"
+	"os"
+	"os/user"
 )
 
 type Config struct {
 	Render struct {
 		Start    float64
-		Length   float64 `gcfg:"render_len"`
-		Scale    float64 `gcfg:"scale"`
-		MaxDepth int     `gcfg:"max_depth"`
-		Cutoff   float64 `gcfg:"render_cutoff"`
-		Coalesce float64 `gcfg:"coalesce_threshold"`
+		Length   float64
+		Scale    float64
+		MaxDepth int
+		Cutoff   float64
+		Coalesce float64
 		Bookmarks bool
 	}
 	Gui struct {
-		RenderAuto bool   `gcfg:"render_auto"`
-		LastLogDir string `gcfg:"last_log_dir"`
+		RenderAuto bool
+		LastLogDir string
 	}
 	Bookmarks struct {
 		Absolute bool
@@ -25,26 +27,65 @@ type Config struct {
 	}
 }
 
+func (self *Config) Default() {
+	usr, _ := user.Current()
+
+	self.Render.Start = 0
+	self.Render.Length = 20.0
+	self.Render.Scale = 50.0
+	self.Render.MaxDepth = 7
+	self.Render.Cutoff = 0.0
+	self.Render.Coalesce = 0.0
+	self.Render.Bookmarks = false
+
+	self.Gui.RenderAuto = true
+	self.Gui.LastLogDir = usr.HomeDir
+
+	self.Bookmarks.Absolute = true
+	self.Bookmarks.Format = "2006/01/02 15:04:05"
+}
+
 func (self *Config) Load(configFile string) {
-	err := gcfg.ReadFileInto(&self, configFile)
+	buf := make([]byte, 2048)
+
+	fp, err := os.Open(configFile)
 	if err != nil {
 		log.Printf("Error loading settings from %s: %s\n", configFile, err)
+		self.Default()
+		return
+	}
+
+	_, err = fp.Read(buf)
+	if err != nil {
+		log.Printf("Error loading settings from %s: %s\n", configFile, err)
+		self.Default()
+		return
+	}
+
+	err = json.Unmarshal(buf, self)
+	if err != nil {
+		log.Printf("Error loading settings from %s: %s\n", configFile, err)
+		self.Default()
+		return
 	}
 }
 
 func (self *Config) Save(configFile string) {
-	/*
-	   try:
-	       cp = ConfigParser.SafeConfigParser()
-	       cp.add_section("gui")
-	       cp.set("gui", "render_len", str(self.render_len.get()))
-	       cp.set("gui", "scale", str(self.scale.get()))
-	       cp.set("gui", "render_cutoff", str(self.render_cutoff.get()))
-	       cp.set("gui", "coalesce_threshold", str(self.coalesce_threshold.get()))
-	       cp.set("gui", "render_auto", str(self.render_auto.get()))
-	       cp.set("gui", "last_log_dir", self._last_log_dir)
-	       cp.write(file(self.config_file, "w"))
-	   except Exception as e:
-	       print("Error writing settings to %s:\n  %s" % (self.config_file, e))
-	*/
+	fp, err := os.Create(configFile)
+	if err != nil {
+		log.Printf("Error saving settings to %s: %s\n", configFile, err)
+		return
+	}
+
+	b, err := json.MarshalIndent(self, "", "    ")
+	if err != nil {
+		log.Printf("Error saving settings to %s: %s\n", configFile, err)
+		return
+	}
+
+	_, err = fp.Write(b)
+	if err != nil {
+		log.Printf("Error saving settings to %s: %s\n", configFile, err)
+		return
+	}
 }
