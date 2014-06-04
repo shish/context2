@@ -9,6 +9,7 @@ import (
 	"time"
 	"log"
 	"sort"
+	"path/filepath"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	"github.com/shish/gotk3/gtk"
 )
@@ -28,6 +29,12 @@ type Data struct {
 	Threads   []string
 	LogStart  float64
 	LogEnd    float64
+}
+
+func splitExt(path string) (root, ext string) {
+    ext = filepath.Ext(path)
+    root = path[:len(path)-len(ext)]
+    return
 }
 
 func VersionCheck(databaseFile string) bool {
@@ -60,10 +67,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string), config Conf
 
 	self.config = config
 
-	/*
-	   path, _ext = os.path.splitext(givenFile)
-	*/
-	path := strings.Split(givenFile, ".")[0]  // FIXME
+	path, _ := splitExt(givenFile)
 	logFile := path + ".ctxt"
 	databaseFile := path + ".cbin"
 
