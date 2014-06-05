@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 	// gtk
+	"github.com/conformal/gotk3/cairo"
+	"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/glib"
-	"github.com/shish/gotk3/gdk"
-	"github.com/shish/gotk3/cairo"
-	"github.com/shish/gotk3/gtk"
+	"github.com/conformal/gotk3/gtk"
 	//"github.com/conformal/gotk3/pango"
 	"./viewer"
 )
@@ -60,7 +60,8 @@ type ContextViewer struct {
 	controls struct {
 		active bool
 		start  *gtk.SpinButton
-		length  *gtk.SpinButton
+		length *gtk.SpinButton
+		scale  *gtk.SpinButton
 	}
 }
 
@@ -332,52 +333,53 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	l, _ = gtk.LabelNew("  Pixels Per Second ")
 	gridTop.Add(l)
 
-	pps, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
-	pps.SetValue(self.config.Render.Scale)
-	pps.Connect("value-changed", func(sb *gtk.SpinButton) {
+	scale, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
+	scale.SetValue(self.config.Render.Scale)
+	scale.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {
 			log.Println("Settings: scale =", sb.GetValue())
 			self.config.Render.Scale = sb.GetValue()
 			self.canvas.QueueDraw()
 		}
 	})
-	gridTop.Add(pps)
+	gridTop.Add(scale)
+	self.controls.scale = scale
 
 	//-----------------------------------------------------------------
+	/*
+		gridBot, _ := gtk.GridNew()
+		gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 
-	gridBot, _ := gtk.GridNew()
-	gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+		l, _ = gtk.LabelNew(" Cutoff (ms) ")
+		gridBot.Add(l)
 
-	l, _ = gtk.LabelNew(" Cutoff (ms) ")
-	gridBot.Add(l)
+		cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
+		cutoff.SetValue(self.config.Render.Cutoff * 1000)
+		cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
+			log.Println("Settings: cutoff =", sb.GetValue())
+			self.config.Render.Cutoff = sb.GetValue() / 1000
+			self.Update()
+		})
+		gridBot.Add(cutoff)
 
-	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-	cutoff.SetValue(self.config.Render.Cutoff * 1000)
-	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
-		log.Println("Settings: cutoff =", sb.GetValue())
-		self.config.Render.Cutoff = sb.GetValue() / 1000
-		self.Update()
-	})
-	gridBot.Add(cutoff)
+		l, _ = gtk.LabelNew("  Coalesce (ms) ")
+		gridBot.Add(l)
 
-	l, _ = gtk.LabelNew("  Coalesce (ms) ")
-	gridBot.Add(l)
+		coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
+		coalesce.SetValue(self.config.Render.Coalesce * 1000)
+		coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
+			log.Println("Settings: coalesce =", sb.GetValue())
+			self.config.Render.Coalesce = sb.GetValue() / 1000
+			self.Update()
+		})
+		gridBot.Add(coalesce)
 
-	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-	coalesce.SetValue(self.config.Render.Coalesce * 1000)
-	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
-		log.Println("Settings: coalesce =", sb.GetValue())
-		self.config.Render.Coalesce = sb.GetValue() / 1000
-		self.Update()
-	})
-	gridBot.Add(coalesce)
-
-	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
-	renderButton.Connect("clicked", func(sb *gtk.Button) {
-		self.Update()
-	})
-	gridBot.Add(renderButton)
-
+		renderButton, _ := gtk.ButtonNewWithLabel("Render!")
+		renderButton.Connect("clicked", func(sb *gtk.Button) {
+			self.Update()
+		})
+		gridBot.Add(renderButton)
+	*/
 	//-----------------------------------------------------------------
 
 	grid, _ := gtk.GridNew()
@@ -549,13 +551,13 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 			clickStart, clickEnd = clickEnd, clickStart
 		}
 
-		start := self.data.LogStart + (self.data.LogEnd - self.data.LogStart) * clickStart
+		start := self.data.LogStart + (self.data.LogEnd-self.data.LogStart)*clickStart
 		length := (self.data.LogEnd - self.data.LogStart) * (clickEnd - clickStart)
 
 		log.Printf("Nav: scrubbing to %.2f + %.2f\n", start, length)
 
 		// if we've dragged rather than clicking, set render length to drag length
-		if clickEnd - clickStart > 0.01 {  // more than 1% of the scrubber's width
+		if clickEnd-clickStart > 0.01 { // more than 1% of the scrubber's width
 			self.SetLength(length)
 		}
 		self.SetStart(start)
@@ -614,7 +616,7 @@ func (self *ContextViewer) Update() {
 	// TODO: reset canvas scroll position
 	self.canvas.QueueDraw()
 
-	go func() {
+	/*go*/ func() {
 		self.data.LoadEvents(
 			self.config.Render.Start, self.config.Render.Length,
 			self.config.Render.Coalesce, self.config.Render.Cutoff,

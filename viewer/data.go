@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	"fmt"
-	"github.com/shish/gotk3/gtk"
+	"github.com/conformal/gotk3/gtk"
 	"log"
 	"os"
 	"os/exec"
