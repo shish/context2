@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 	// gtk
-	"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/glib"
+	"github.com/shish/gotk3/gdk"
 	"github.com/shish/gotk3/cairo"
 	"github.com/shish/gotk3/gtk"
 	//"github.com/conformal/gotk3/pango"
@@ -60,6 +60,7 @@ type ContextViewer struct {
 	controls struct {
 		active bool
 		start  *gtk.SpinButton
+		length  *gtk.SpinButton
 	}
 }
 
@@ -205,7 +206,6 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		formatButton.SetSubmenu(func() *gtk.Menu {
 			formatMenu, _ := gtk.MenuNew()
 
-			// TODO: submenu
 			grp := &glib.SList{}
 
 			bookmarksDateButton, _ := gtk.RadioMenuItemNewWithLabel(grp, "Date")
@@ -307,7 +307,8 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	start.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {
 			log.Println("Settings: start =", sb.GetValue())
-			self.GoTo(sb.GetValue())
+			self.SetStart(sb.GetValue())
+			self.Update()
 		}
 	})
 	gridTop.Add(start)
@@ -316,16 +317,17 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	l, _ = gtk.LabelNew("  Seconds ")
 	gridTop.Add(l)
 
-	sec, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
-	sec.SetValue(self.config.Render.Length)
-	sec.Connect("value-changed", func(sb *gtk.SpinButton) {
+	length, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
+	length.SetValue(self.config.Render.Length)
+	length.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {
 			log.Println("Settings: len =", sb.GetValue())
-			self.config.Render.Length = sb.GetValue()
-			self.GoTo(self.config.Render.Start)
+			self.SetLength(sb.GetValue())
+			self.Update()
 		}
 	})
-	gridTop.Add(sec)
+	gridTop.Add(length)
+	self.controls.length = length
 
 	l, _ = gtk.LabelNew("  Pixels Per Second ")
 	gridTop.Add(l)
@@ -354,7 +356,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: cutoff =", sb.GetValue())
 		self.config.Render.Cutoff = sb.GetValue() / 1000
-		self.GoTo(self.config.Render.Start)
+		self.Update()
 	})
 	gridBot.Add(cutoff)
 
@@ -366,13 +368,13 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
 		log.Println("Settings: coalesce =", sb.GetValue())
 		self.config.Render.Coalesce = sb.GetValue() / 1000
-		self.GoTo(self.config.Render.Start)
+		self.Update()
 	})
 	gridBot.Add(coalesce)
 
 	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
 	renderButton.Connect("clicked", func(sb *gtk.Button) {
-		self.GoTo(self.config.Render.Start)
+		self.Update()
 	})
 	gridBot.Add(renderButton)
 
@@ -393,7 +395,7 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 	// http://www.mono-project.com/GtkSharp_TreeView_Tutorial
 	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
-	// TODO: have GoTo affect this
+	// TODO: have SetStart affect this
 	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
 	bookmarkScrollPane.SetSizeRequest(250, 200)
 	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.Bookmarks)
@@ -404,7 +406,8 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 		value, _ := gvalue.GoValue()
 		fvalue := value.(float64)
 		log.Printf("Nav: bookmark %.2f\n", fvalue)
-		self.GoTo(fvalue)
+		self.SetStart(fvalue)
+		self.Update()
 	})
 	bookmarkScrollPane.Add(bookmarkView)
 	grid.Attach(bookmarkScrollPane, 0, 0, 5, 1)
@@ -416,14 +419,16 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 	l, _ := gtk.ButtonNewWithLabel("<<")
 	l.Connect("clicked", func() {
 		log.Println("Nav: Start")
-		self.GoTo(self.data.LogStart)
+		self.SetStart(self.data.LogStart)
+		self.Update()
 	})
 	grid.Attach(l, 0, 1, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel("<")
 	l.Connect("clicked", func() {
 		log.Println("Nav: Prev")
-		self.GoTo(self.data.GetLatestBookmarkBefore(self.config.Render.Start))
+		self.SetStart(self.data.GetLatestBookmarkBefore(self.config.Render.Start))
+		self.Update()
 	})
 	grid.Attach(l, 1, 1, 1, 1)
 
@@ -433,14 +438,16 @@ func (self *ContextViewer) __bookmarks() *gtk.Grid {
 	l, _ = gtk.ButtonNewWithLabel(">")
 	l.Connect("clicked", func() {
 		log.Println("Nav: Next")
-		self.GoTo(self.data.GetEarliestBookmarkAfter(self.config.Render.Start))
+		self.SetStart(self.data.GetEarliestBookmarkAfter(self.config.Render.Start))
+		self.Update()
 	})
 	grid.Attach(l, 3, 1, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel(">>")
 	l.Connect("clicked", func() {
 		log.Println("Nav: End")
-		self.GoTo(self.data.LogEnd - self.config.Render.Length)
+		self.SetStart(self.data.LogEnd - self.config.Render.Length)
+		self.Update()
 	})
 	grid.Attach(l, 4, 1, 1, 1)
 
@@ -507,6 +514,8 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 }
 
 func (self *ContextViewer) __scrubber() *gtk.Grid {
+	var clickStart, clickEnd float64
+
 	grid, _ := gtk.GridNew()
 
 	canvas, _ := gtk.DrawingAreaNew()
@@ -523,17 +532,34 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 		//width, _ := widget.GetSizeRequest()
 		self.RenderScrubber(cr, 500.0)
 	})
-	// TODO: react to clicks
-	// GDK_BUTTON_PRESS_MASK
+	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK)
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
-		log.Println("Nav: scrubbing to")
-		/*
-		   width_fraction = float(e.x) / sc.winfo_width()
-		   ev_s = self.get_earliest_bookmark_after(0)
-		   ev_e = self.get_latest_bookmark_before(sys.maxint)
-		   ev_l = ev_e - ev_s
-		   self.GoTo(ev_s + ev_l * width_fraction - float(self.render_len.get()) / 2)
-		*/
+		var x, y float64
+		evt.GetCoords(&x, &y)
+		width := 500.0
+		clickStart = x / width
+	})
+	canvas.Connect("button-release-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		var x, y float64
+		evt.GetCoords(&x, &y)
+		width := 500.0
+		clickEnd = x / width
+
+		if clickStart > clickEnd {
+			clickStart, clickEnd = clickEnd, clickStart
+		}
+
+		start := self.data.LogStart + (self.data.LogEnd - self.data.LogStart) * clickStart
+		length := (self.data.LogEnd - self.data.LogStart) * (clickEnd - clickStart)
+
+		log.Printf("Nav: scrubbing to %.2f + %.2f\n", start, length)
+
+		// if we've dragged rather than clicking, set render length to drag length
+		if clickEnd - clickStart > 0.01 {  // more than 1% of the scrubber's width
+			self.SetLength(length)
+		}
+		self.SetStart(start)
+		self.Update()
 	})
 	grid.Add(canvas)
 
@@ -555,7 +581,7 @@ func (self *ContextViewer) ShowError(title, text string) {
 	// TODO: error dialog
 }
 
-func (self *ContextViewer) GoTo(ts float64) {
+func (self *ContextViewer) SetStart(ts float64) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
 
@@ -570,17 +596,31 @@ func (self *ContextViewer) GoTo(ts float64) {
 		self.controls.start.SetValue(ts)
 		self.config.Render.Start = ts
 		self.scrubber.QueueDraw()
-		self.data.Data = []viewer.Event{}
-		// TODO: reset canvas scroll position
-		self.canvas.QueueDraw()
-		go func() {
-			self.data.LoadEvents(
-				self.config.Render.Start, self.config.Render.Length,
-				self.config.Render.Coalesce, self.config.Render.Cutoff,
-				self.SetStatus)
-			self.canvas.QueueDraw()
-		}()
 	}
+}
+
+func (self *ContextViewer) SetLength(length float64) {
+	self.controls.active = false
+	defer func() { self.controls.active = true }()
+
+	self.controls.length.SetValue(length)
+	self.config.Render.Length = length
+	self.scrubber.QueueDraw()
+}
+
+func (self *ContextViewer) Update() {
+	// free old data
+	self.data.Data = []viewer.Event{}
+	// TODO: reset canvas scroll position
+	self.canvas.QueueDraw()
+
+	go func() {
+		self.data.LoadEvents(
+			self.config.Render.Start, self.config.Render.Length,
+			self.config.Render.Coalesce, self.config.Render.Cutoff,
+			self.SetStatus)
+		self.canvas.QueueDraw()
+	}()
 }
 
 /**********************************************************************
@@ -603,7 +643,8 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 
 	// render canvas with empty data first, then load the data
 	self.canvas.QueueDraw()
-	self.GoTo(self.data.LogStart)
+	self.SetStart(self.data.LogStart)
+	self.Update()
 }
 
 /**********************************************************************
