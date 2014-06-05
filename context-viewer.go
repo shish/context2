@@ -338,7 +338,7 @@ func (self *ContextViewer) __controlBox() *gtk.Grid {
 	scale.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {
 			log.Println("Settings: scale =", sb.GetValue())
-			self.config.Render.Scale = sb.GetValue()
+			self.SetScale(sb.GetValue())
 			self.canvas.QueueDraw()
 		}
 	})
@@ -471,6 +471,12 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 		widget.SetSizeRequest(width, height)
 		self.RenderBase(cr)
 		self.RenderData(cr)
+	})
+	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK)
+	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		var x, y float64
+		evt.GetCoords(&x, &y)
+		log.Println("Grid click", x, y)
 	})
 	// TODO: mouse wheel zoom
 	/*
@@ -608,6 +614,15 @@ func (self *ContextViewer) SetLength(length float64) {
 	self.controls.length.SetValue(length)
 	self.config.Render.Length = length
 	self.scrubber.QueueDraw()
+}
+
+func (self *ContextViewer) SetScale(scale float64) {
+	self.controls.active = false
+	defer func() { self.controls.active = true }()
+
+	self.controls.scale.SetValue(scale)
+	self.config.Render.Scale = scale
+	//self.canvas.QueueDraw()
 }
 
 func (self *ContextViewer) Update() {
