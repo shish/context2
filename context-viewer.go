@@ -81,12 +81,12 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 
 	usr, _ := user.Current()
 	self.configFile = usr.HomeDir + "/.config/context2.cfg"
-	self.config.Load(self.configFile)
+	err = self.config.Load(self.configFile)
+	if err != nil {
+		log.Printf("Error loading config file %s: %s\n", self.configFile, err)
+	}
 
-	master.Connect("destroy", func() {
-		self.config.Save(self.configFile)
-		gtk.MainQuit()
-	})
+	master.Connect("destroy", self.Exit)
 
 	menuBar := self.__menu()
 	controls := self.__controlBox()
@@ -121,6 +121,14 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	if databaseFile != nil {
 		self.LoadFile(*databaseFile)
 	}
+}
+
+func (self *ContextViewer) Exit() {
+	err := self.config.Save(self.configFile)
+	if err != nil {
+		log.Printf("Error saving settings to %s: %s\n", self.configFile, err)
+	}
+	gtk.MainQuit()
 }
 
 func (self *ContextViewer) __menu() *gtk.MenuBar {
@@ -159,10 +167,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		fileMenu.Append(sep)
 
 		quitButton, _ := gtk.MenuItemNewWithLabel("Quit")
-		quitButton.Connect("activate", func() {
-			self.config.Save(self.configFile)
-			gtk.MainQuit()
-		})
+		quitButton.Connect("activate", self.Exit)
 		fileMenu.Append(quitButton)
 
 		return fileMenu

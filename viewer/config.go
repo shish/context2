@@ -2,7 +2,6 @@ package viewer
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"os/user"
 )
@@ -47,47 +46,43 @@ func (self *Config) Default() {
 	self.Bookmarks.Format = "2006/01/02 15:04:05"
 }
 
-func (self *Config) Load(configFile string) {
+func (self *Config) Load(configFile string) (err error) {
 	buf := make([]byte, 2048)
+	self.Default()
 
 	fp, err := os.Open(configFile)
 	if err != nil {
-		log.Printf("Error loading settings from %s: %s\n", configFile, err)
-		self.Default()
 		return
 	}
 
 	n, err := fp.Read(buf)
 	if err != nil {
-		log.Printf("Error loading settings from %s: %s\n", configFile, err)
-		self.Default()
 		return
 	}
 
 	err = json.Unmarshal(buf[:n], self)
 	if err != nil {
-		log.Printf("Error loading settings from %s: %s\n", configFile, err)
-		self.Default()
 		return
 	}
+
+	return nil
 }
 
-func (self *Config) Save(configFile string) {
+func (self *Config) Save(configFile string) (err error) {
 	fp, err := os.Create(configFile)
 	if err != nil {
-		log.Printf("Error saving settings to %s: %s\n", configFile, err)
 		return
 	}
 
 	b, err := json.MarshalIndent(self, "", "    ")
 	if err != nil {
-		log.Printf("Error saving settings to %s: %s\n", configFile, err)
 		return
 	}
 
 	_, err = fp.Write(b)
 	if err != nil {
-		log.Printf("Error saving settings to %s: %s\n", configFile, err)
 		return
 	}
+
+	return
 }
