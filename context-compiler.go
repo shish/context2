@@ -12,6 +12,7 @@ import (
 	"code.google.com/p/go-sqlite/go1/sqlite3"
 	//ctx "github.com/shish/context-apis/go/context"
 	"./compiler"
+	"./common"
 )
 
 type Thread struct {
@@ -270,7 +271,7 @@ func compileLog(logFile string, databaseFile string) {
 	db.Exec(`
 		INSERT INTO settings(version, start_time, end_time)
 		VALUES(?, ?, ?)
-	`, 2, firstEventStart, lastEventEnd)
+	`, common.DB_VER, firstEventStart, lastEventEnd)
 
 	db.Commit()
 	db.Close()

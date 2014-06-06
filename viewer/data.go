@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"../common"
 )
 
 type Data struct {
@@ -48,8 +49,8 @@ func VersionCheck(databaseFile string) bool {
 		fmt.Printf("Error getting version row: %s\n", err)
 		return false
 	}
-	if version != 2 {
-		fmt.Printf("Version too old: %d\n", version)
+	if version != common.DB_VER {
+		fmt.Printf("Incompatible binary version: %d != %d\n", version, common.DB_VER)
 		return false
 	}
 
