@@ -2,7 +2,7 @@ package viewer
 
 import (
 	"bufio"
-	"code.google.com/p/go-sqlite/go1/sqlite3"
+	"github.com/mxk/go-sqlite/sqlite3"
 	"fmt"
 	"github.com/conformal/gotk3/gtk"
 	"log"

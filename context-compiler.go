@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 	//"runtime/pprof"
-	"code.google.com/p/go-sqlite/go1/sqlite3"
+	"github.com/mxk/go-sqlite/sqlite3"
 	//ctx "github.com/shish/context-apis/go/context"
 	"./compiler"
 	"./common"
