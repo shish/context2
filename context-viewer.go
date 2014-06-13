@@ -472,36 +472,21 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 		self.RenderBase(cr)
 		self.RenderData(cr)
 	})
-	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK)
+	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK | gdk.SCROLL_MASK)
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
 		log.Println("Grid click", x, y)
-	})
-	// TODO: mouse wheel zoom
-	/*
-	   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
-	   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
 
-	   # in windows, mouse wheel events always go to the root window o_O
-	   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
-	       e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
-	   ))
+		threadID := int((y - float64(HEADER_HEIGHT)) / float64(BLOCK_HEIGHT * self.config.Render.MaxDepth))
+		thread := self.data.Threads[threadID]
 
-	   # Drag based movement
-	   # def _sm(e):
-	   #    self.st = self.render_start.get()
-	   #    self.sx = e.x
-	   #    self.sy = e.y
-	   # def _cm(e):
-	   #    self.render_start.set(self.st + float(self.sx - e.x)/self.scale.get())
-	   #    self.render()
-	   # self.canvas.bind("<1>", _sm)
-	   # self.canvas.bind("<B1-Motion>", _cm)
-	*/
+		width := self.config.Render.Scale * self.config.Render.Length
+		ts := ((x / width) * self.config.Render.Length) - self.config.Render.Start
+		log.Println("Click is thread", thread, "at timestamp", ts)
 	// TODO: click to focus
 	/*
-	   def _focus(self, r):
+	   r = event_rect
 	       # scale the canvas so that the (selected item width + padding == screen width)
 	       view_w = self.canvas.winfo_width()
 	       rect_w = max(self.canvas.bbox(r)[2] - self.canvas.bbox(r)[0] + HEADER_HEIGHT, 10)
@@ -512,6 +497,22 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	       rect_x = self.canvas.bbox(r)[0] - 5
 	       self.canvas.xview_moveto(float(rect_x) / canvas_w)
 	*/
+	})
+	canvas.Connect("scroll-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		var x, y float64
+		evt.GetCoords(&x, &y)
+		log.Println("Grid scroll", x, y)
+	// TODO: mouse wheel zoom
+	/*
+	   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
+	   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
+
+	   # in windows, mouse wheel events always go to the root window o_O
+	   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
+	       e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
+	   ))
+	*/
+	})
 
 	canvasScrollPane.Add(canvas)
 	grid.Add(canvasScrollPane)
