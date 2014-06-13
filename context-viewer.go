@@ -17,11 +17,11 @@ import (
 	"github.com/conformal/gotk3/gtk"
 	//"github.com/conformal/gotk3/pango"
 	"./viewer"
+	"./common"
 )
 
 const (
 	NAME            = "Context"
-	VERSION         = "v0.0.0"
 	BLOCK_HEIGHT    = 20
 	HEADER_HEIGHT   = 20
 	SCRUBBER_HEIGHT = 20
@@ -30,10 +30,6 @@ const (
 	MIN_SEC         = 1
 	MAX_SEC         = 600
 )
-
-// TODO: demo limits
-//if VERSION.endswith("-demo"):
-//    NAME += ": Non-commercial / Evaluation Version"
 
 /**********************************************************************
 * Structs
@@ -45,6 +41,7 @@ type Geometry struct {
 }
 
 type ContextViewer struct {
+	name          string
 	// GUI
 	master        *gtk.Window
 	canvas        *gtk.DrawingArea
@@ -75,7 +72,11 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 		log.Fatal("Unable to create window:", err)
 	}
 
-	master.SetTitle(NAME)
+	self.name = NAME
+	if common.DEMO {
+		self.name += ": Non-commercial / Evaluation Version"
+	}
+	master.SetTitle(self.name)
 	master.SetDefaultSize(geometry.w, geometry.h)
 	//master.SetDefaultIcon(nil)  // TODO: set icon
 
@@ -265,8 +266,8 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		aboutButton.Connect("activate", func(btn *gtk.MenuItem) {
 			abt, _ := gtk.AboutDialogNew()
 			// TODO: SetLogo(gdk.PixBuf)
-			abt.SetProgramName(NAME)
-			abt.SetVersion(VERSION)
+			abt.SetProgramName(self.name)
+			abt.SetVersion(common.VERSION)
 			abt.SetCopyright("(c) 2011-2014 Shish")
 			abt.SetLicense("Angry Badger") // TODO
 			abt.SetWebsite("http://code.shishnet.org/context")
@@ -580,6 +581,7 @@ func (self *ContextViewer) getEventAt(x, y float64) *viewer.Event {
 	ts := self.config.Render.Start + ((x / width) * self.config.Render.Length)
 	//log.Printf("Click is thread %d depth %d at timestamp %.2f\n", threadID, depth, ts)
 
+	// TODO: binary search? Events should be in startDate order
 	for _, event := range self.data.Data {
 		if event.StartTime < ts && event.EndTime > ts && event.ThreadID == threadID && event.Depth == depth {
 			log.Printf("Clicked on event '%s'\n", event.Text())
@@ -671,7 +673,7 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 
 	// update title and scrubber, as those are ~instant
 	self.controls.active = false
-	self.master.SetTitle(NAME + ": " + databaseFile)
+	self.master.SetTitle(self.name + ": " + databaseFile)
 	self.controls.start.SetRange(self.data.LogStart, self.data.LogEnd)
 	self.controls.active = true
 	self.scrubber.QueueDraw()
@@ -786,6 +788,8 @@ func (self *ContextViewer) RenderBase(cr *cairo.Context) {
 }
 
 func (self *ContextViewer) RenderData(cr *cairo.Context) {
+	defer self.SetStatus("")
+
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
 
@@ -806,11 +810,10 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 				continue
 			}
 			shown += 1
-			// TODO: demo limits
-			//if shown == 500 && VERSION.endswith("-demo") {
-			//	self.ShowError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
-			//	break
-			//}
+			if common.DEMO && shown == 500 {
+				self.ShowError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
+				return
+			}
 			self.ShowEvent(cr, &event, _rs, _sc, thread_idx)
 
 		case event.StartType == "BMARK":
@@ -822,8 +825,6 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 			self.ShowLock(cr, &event, _rs, _sc, thread_idx)
 		}
 	}
-
-	self.SetStatus("")
 }
 
 func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
