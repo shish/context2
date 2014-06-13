@@ -1,0 +1,17 @@
+Bloodthirsty License Agreement
+==============================
+
+This is where the bloodthirsty license agreement is supposed to go, explaining that Context is a copyrighted package, sternly warning you not to pirate copies of it and explaining, in detail, the gory consequences if you do.
+
+We know that you are an honest person, and are not going to go around pirating copies of Context; this is just as well with us since we worked hard to perfect it and selling copies of it is our only method of making anything out of all the hard work. For your convenience Context is distributed as a simple .exe and you are free to do what you want with it (make backups, move from machine to machine, etc.) provided that it is never in use by more than one person at a time.
+
+If, on the other hand, you are one of those few people who do go around pirating copies of software, you probably aren't going to pay much attention to a license agreement, bloodthirsty or not. Just keep your doors locked and look out for the ShishNet Attack Badger.
+
+
+[based on the Bloodthisty License by Haventree Software]
+
+
+----
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

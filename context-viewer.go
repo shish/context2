@@ -269,9 +269,9 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 			abt.SetProgramName(self.name)
 			abt.SetVersion(common.VERSION)
 			abt.SetCopyright("(c) 2011-2014 Shish")
-			abt.SetLicense("Angry Badger") // TODO
+			abt.SetLicense(common.LICENSE)
+			abt.SetWrapLicense(true)
 			abt.SetWebsite("http://code.shishnet.org/context")
-			//abt.SetWrapLicense(true)
 			//abt.SetAuthors("Shish <webmaster@shishnet.org>")
 			abt.Show()
 		})
