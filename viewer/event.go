@@ -13,14 +13,14 @@ import (
 type Event struct {
 	id             int
 	ThreadID       int
-	start_location string
-	end_location   string
+	startLocation string
+	endLocation   string
 	StartTime      float64
 	EndTime        float64
 	StartType      string
 	EndType        string
-	start_text     string
-	end_text       string
+	startText     string
+	endText       string
 	count          int
 	Depth          int
 }
@@ -29,10 +29,10 @@ func (self *Event) NewEvent(query *sqlite3.Stmt) {
 	query.Scan(
 		&self.id,
 		&self.ThreadID,
-		&self.start_location, &self.end_location,
+		&self.startLocation, &self.endLocation,
 		&self.StartTime, &self.EndTime,
 		&self.StartType, &self.EndType,
-		&self.start_text, &self.end_text,
+		&self.startText, &self.endText,
 	)
 
 	self.count = 1
@@ -44,7 +44,7 @@ func (self *Event) CanMerge(other Event, threshold float64) bool {
 		other.ThreadID == self.ThreadID &&
 		other.StartTime-self.EndTime < 0.001 &&
 		other.Length() < threshold &&
-		other.start_text == self.start_text)
+		other.startText == self.startText)
 }
 
 func (self *Event) Merge(other Event) {
@@ -55,10 +55,10 @@ func (self *Event) Merge(other Event) {
 func (self *Event) Text() string {
 	var text string
 
-	if self.start_text == self.end_text || self.end_text == "" {
-		text = self.start_text
+	if self.startText == self.endText || self.endText == "" {
+		text = self.startText
 	} else {
-		text = self.start_text + "\n" + self.end_text
+		text = self.startText + "\n" + self.endText
 	}
 
 	if self.count > 1 {
