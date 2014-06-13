@@ -476,33 +476,26 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
-		log.Println("Grid click", x, y)
+		event := self.getEventAt(x, y)
 
-		threadID := int((y - float64(HEADER_HEIGHT)) / float64(BLOCK_HEIGHT * self.config.Render.MaxDepth))
-		thread := self.data.Threads[threadID]
+		if event != nil {
+			viewWidth := 500.0 // FIXME
+			pps := viewWidth / event.Length()
+			self.SetScale(pps)
 
-		width := self.config.Render.Scale * self.config.Render.Length
-		ts := ((x / width) * self.config.Render.Length) - self.config.Render.Start
-		log.Println("Click is thread", thread, "at timestamp", ts)
-	// TODO: click to focus
-	/*
-	   r = event_rect
-	       # scale the canvas so that the (selected item width + padding == screen width)
-	       view_w = self.canvas.winfo_width()
-	       rect_w = max(self.canvas.bbox(r)[2] - self.canvas.bbox(r)[0] + HEADER_HEIGHT, 10)
-	       self.scale_view(n=float(view_w) / rect_w)
+			// TODO: move the view so that the selected (item x1 = left edge of screen + padding)
+			//startFrac := (event.StartTime - self.config.Render.Start) / self.config.Render.Length
+			//adj := gtk.AdjustmentNew()
+			//canvasScrollPane.SetHAdjustment(adj)
 
-	       # move the view so that the selected (item x1 = left edge of screen + padding)
-	       canvas_w = self.canvas.bbox("grid")[2]
-	       rect_x = self.canvas.bbox(r)[0] - 5
-	       self.canvas.xview_moveto(float(rect_x) / canvas_w)
-	*/
+			self.canvas.QueueDraw()
+		}
 	})
 	canvas.Connect("scroll-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
 		log.Println("Grid scroll", x, y)
-	// TODO: mouse wheel zoom
+		// TODO: mouse wheel zoom
 	/*
 	   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
 	   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
@@ -532,7 +525,7 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 	canvas.SetHExpand(true)
 	// TODO: render at actual size
 	//canvas.Connect("size-allocate", func(widget *gtk.DrawingArea, alloc *gtk.Allocation) {
-	//})
+	//})h
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		//GtkAllocation* alloc = g_new(GtkAllocation, 1);
 		//gtk_widget_get_allocation(widget, alloc);
@@ -575,6 +568,27 @@ func (self *ContextViewer) __scrubber() *gtk.Grid {
 	self.scrubber = canvas
 
 	return grid
+}
+
+func (self *ContextViewer) getEventAt(x, y float64) *viewer.Event {
+	yRel := y - float64(HEADER_HEIGHT)
+	threadID := int(yRel / float64(BLOCK_HEIGHT * self.config.Render.MaxDepth))
+	//thread := self.data.Threads[threadID]
+	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.MaxDepth)) / BLOCK_HEIGHT
+
+	width := self.config.Render.Scale * self.config.Render.Length
+	ts := self.config.Render.Start + ((x / width) * self.config.Render.Length)
+	//log.Printf("Click is thread %d depth %d at timestamp %.2f\n", threadID, depth, ts)
+
+	for _, event := range self.data.Data {
+		if event.StartTime < ts && event.EndTime > ts && event.ThreadID == threadID && event.Depth == depth {
+			log.Printf("Clicked on event '%s'\n", event.Text())
+			return &event
+		}
+	}
+
+	log.Println("Clicked on no event")
+	return nil
 }
 
 func (self *ContextViewer) SetStatus(text string) {
@@ -620,6 +634,9 @@ func (self *ContextViewer) SetLength(length float64) {
 func (self *ContextViewer) SetScale(scale float64) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
+
+	if scale < MIN_PPS { scale = MIN_PPS }
+	if scale > MAX_PPS { scale = MAX_PPS }
 
 	self.controls.scale.SetValue(scale)
 	self.config.Render.Scale = scale
