@@ -53,6 +53,7 @@ type ContextViewer struct {
 
 	// data
 	data viewer.Data
+	activeEvent *viewer.Event
 
 	controls struct {
 		active bool
@@ -78,7 +79,10 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	}
 	master.SetTitle(self.name)
 	master.SetDefaultSize(geometry.w, geometry.h)
-	//master.SetDefaultIcon(nil)  // TODO: set icon
+	icon, err := gdk.PixbufNewFromFile("data/context-icon.svg")
+	if err == nil {
+		master.SetIcon(icon)
+	}
 
 	self.master = master
 
@@ -264,9 +268,11 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 
 		aboutButton, _ := gtk.MenuItemNewWithLabel("About")
 		aboutButton.Connect("activate", func(btn *gtk.MenuItem) {
-			icon, _ := gdk.PixbufNewFromFile("data/context-name.svg")
 			abt, _ := gtk.AboutDialogNew()
-			abt.SetLogo(icon)
+
+			logo, err := gdk.PixbufNewFromFile("data/context-name.svg")
+			if err == nil { abt.SetLogo(logo) }
+
 			abt.SetProgramName(self.name)
 			abt.SetVersion(common.VERSION)
 			abt.SetCopyright("(c) 2011-2014 Shish")
@@ -274,6 +280,10 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 			abt.SetWrapLicense(true)
 			abt.SetWebsite("http://code.shishnet.org/context")
 			//abt.SetAuthors([]string{"Shish <webmaster@shishnet.org>"})
+
+			icon, err := gdk.PixbufNewFromFile("data/tools-icon.svg")
+			if err == nil { abt.SetIcon(icon) }
+
 			abt.Show()
 		})
 		helpMenu.Append(aboutButton)
@@ -474,7 +484,19 @@ func (self *ContextViewer) __canvas() *gtk.Grid {
 		self.RenderBase(cr)
 		self.RenderData(cr)
 	})
-	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK | gdk.SCROLL_MASK)
+	canvas.AddEvents(
+			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
+			gdk.SCROLL_MASK | gdk.POINTER_MOTION_MASK)
+	canvas.Connect("motion-notify-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		var x, y float64
+		evt.GetCoords(&x, &y)
+		event := self.getEventAt(x, y)
+		if !cmpEvent(event, self.activeEvent) {
+			self.activeEvent = event
+			log.Println("Active event now", event)
+			self.canvas.QueueDraw()
+		}
+	})
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
@@ -584,14 +606,23 @@ func (self *ContextViewer) getEventAt(x, y float64) *viewer.Event {
 
 	// TODO: binary search? Events should be in startDate order
 	for _, event := range self.data.Data {
-		if event.StartTime < ts && event.EndTime > ts && event.ThreadID == threadID && event.Depth == depth {
-			log.Printf("Clicked on event '%s'\n", event.Text())
+		if (event.StartTime < ts && event.EndTime > ts &&
+		event.ThreadID == threadID && event.Depth == depth) {
 			return &event
 		}
 	}
 
-	log.Println("Clicked on no event")
 	return nil
+}
+
+func cmpEvent(a *viewer.Event, b *viewer.Event) bool {
+	if a == nil && b == nil {
+		return true
+	} else if a == nil || b == nil {
+		return false
+	} else {
+		return a.StartTime == b.StartTime && a.ThreadID == b.ThreadID
+	}
 }
 
 func (self *ContextViewer) SetStatus(text string) {
@@ -833,6 +864,10 @@ func (self *ContextViewer) RenderData(cr *cairo.Context) {
 			self.ShowLock(cr, &event, _rs, _sc, thread_idx)
 		}
 	}
+
+	if self.activeEvent != nil {
+		self.ShowTip(cr, self.activeEvent, _rs, _sc, self.activeEvent.ThreadID)
+	}
 }
 
 func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
@@ -862,6 +897,30 @@ func (self *ContextViewer) ShowEvent(cr *cairo.Context, event *viewer.Event, off
 	cr.Rectangle(start_px, depth_px, math.Max(0, length_px-5), BLOCK_HEIGHT) // length-5 = have padding
 	cr.Clip()
 	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70)
+	cr.ShowText(event.Text())
+	cr.Restore()
+}
+
+func (self *ContextViewer) ShowTip(cr *cairo.Context, event *viewer.Event, offset_time, scale_factor float64, thread int) {
+	start_px := (event.StartTime - offset_time) * scale_factor
+	length_px := event.Length() * scale_factor
+	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (event.Depth * BLOCK_HEIGHT))
+
+	cr.SetSourceRGB(0.9, 0.9, 0.7) // TODO: FFA
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Fill()
+
+	cr.SetSourceRGB(0.7, 0.7, 0.5) // TODO: AA8
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Stroke()
+
+	cr.Save()
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Clip()
+	cr.SetSourceRGB(0.2, 0.2, 0.2)
+	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70 + BLOCK_HEIGHT)
+	cr.ShowText(event.Tip(offset_time))
+	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70 + BLOCK_HEIGHT*2)
 	cr.ShowText(event.Text())
 	cr.Restore()
 }
@@ -905,37 +964,6 @@ func (self *ContextViewer) ShowBookmark(cr *cairo.Context, event *viewer.Event, 
 	cr.MoveTo(start_px+5, height-5)
 	cr.ShowText(event.Text())
 }
-
-/*
-	//	tip := fmt.Sprintf("%dms @%dms: %s\n%s",
-	//	   (event.EndTime - event.StartTime) * 1000,
-	//	   (event.StartTime - offset_time) * 1000,
-	//	   event.start_location, event.Text())
-
-   def _ttip_show(self, r):
-       tip = self.tooltips[r]
-
-       x0, y0, x1, y1 = self.canvas.bbox(r)
-
-       if x0 < 0:
-           x1 = x1 - x0
-           x0 = x0 - x0
-
-       t2 = self.canvas.create_text(
-           x0 + 4, y0 + BLOCK_HEIGHT + 4,
-           text=tip.strip(), width=400, tags="tooltip", anchor=NW,
-           justify="left", state="disabled",
-       )
-
-       x0, y0, x1, y1 = self.canvas.bbox(t2)
-
-       r2 = self.canvas.create_rectangle(
-           x0 - 2, y0 - 1, x1 + 2, y1 + 2,
-           state="disabled", fill="#FFA", outline="#AA8", tags="tooltip"
-       )
-
-       self.canvas.tag_raise(t2)
-*/
 
 /**********************************************************************
 * Main

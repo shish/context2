@@ -68,6 +68,13 @@ func (self *Event) Text() string {
 	return text
 }
 
+func (self *Event) Tip(offsetTime float64) string {
+	return fmt.Sprintf("%.0fms @%.0fms: %s",
+		   (self.EndTime - self.StartTime) * 1000,
+		   (self.StartTime - offsetTime) * 1000,
+		   self.startLocation)
+}
+
 func (self *Event) Length() float64 {
 	return self.EndTime - self.StartTime
 }
