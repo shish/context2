@@ -603,7 +603,14 @@ func (self *ContextViewer) SetStatus(text string) {
 
 func (self *ContextViewer) ShowError(title, text string) {
 	log.Printf("%s: %s\n", title, text)
-	// TODO: error dialog
+	dialog := gtk.MessageDialogNewWithMarkup(
+		self.master,
+        gtk.DIALOG_DESTROY_WITH_PARENT,
+        gtk.MESSAGE_ERROR,
+        gtk.BUTTONS_CLOSE,
+        text)
+	dialog.SetTitle(title)
+	dialog.Show()
 }
 
 func (self *ContextViewer) SetStart(ts float64) {
