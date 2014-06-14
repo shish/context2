@@ -1,4 +1,4 @@
-package viewer
+package event
 
 import (
 	"github.com/mxk/go-sqlite/sqlite3"
@@ -103,4 +103,14 @@ func (a ByType) Less(i, j int) bool {
 		return types.pos(a[i].StartType) < types.pos(a[j].StartType)
 	}
 	return false
+}
+
+func CmpEvent(a *Event, b *Event) bool {
+	if a == nil && b == nil {
+		return true
+	} else if a == nil || b == nil {
+		return false
+	} else {
+		return a.StartTime == b.StartTime && a.ThreadID == b.ThreadID
+	}
 }

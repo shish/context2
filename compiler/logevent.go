@@ -17,7 +17,7 @@ type LogEvent struct {
 }
 
 func (self *LogEvent) FromLine(line string) {
-	// TODO regex?
+	// regex?
 	/*
 		n, _ := fmt.Sscanf(line, "%f %s %d %s %s %s %s\n",
 			&self.Timestamp, &self.Node, &self.Process, &self.Thread,

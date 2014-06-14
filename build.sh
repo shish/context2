@@ -7,8 +7,8 @@ data = "".join([("\\\\x%02X" % ord(x)) for x in file(sys.argv[1]).read()])
 print '\t%s = "%s"' % (name, data)
 EOD
 
-OUT=viewer/bindata.go
-echo package viewer > $OUT
+OUT=viewer/gui/bindata.go
+echo package gui > $OUT
 echo "const (" >> $OUT
 for fn in data/*.svg ; do
 	gdk-pixbuf-pixdata ${fn} ${fn}.dat

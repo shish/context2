@@ -1,4 +1,4 @@
-package viewer
+package data
 
 import (
 	"bufio"
@@ -12,13 +12,15 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"../common"
+	"../../common"
+	"../config"
+	"../event"
 )
 
 type Data struct {
 	conn      *sqlite3.Conn
-	config    Config
-	Data      []Event
+	config    config.Config
+	Data      []event.Event
 	Bookmarks *gtk.ListStore
 	Summary   []int
 	Threads   []string
@@ -57,7 +59,7 @@ func VersionCheck(databaseFile string) bool {
 	return true
 }
 
-func (self *Data) LoadFile(givenFile string, setStatus func(string), config Config) (string, error) {
+func (self *Data) LoadFile(givenFile string, setStatus func(string), config config.Config) (string, error) {
 	log.Println("Loading: file", givenFile)
 
 	self.config = config
@@ -113,7 +115,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string), config Conf
 	}
 	self.conn, _ = sqlite3.Open(databaseFile)
 
-	self.Data = []Event{} // don't load the bulk of the data yet
+	self.Data = []event.Event{} // don't load the bulk of the data yet
 	self.LoadSettings()
 	self.LoadBookmarks()
 	self.LoadSummary()
@@ -130,8 +132,8 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	s := renderStart
 	e := renderStart + renderLen
 	threshold := float64(coalesce)
-	self.Data = []Event{} // free memory
-	threadLevelEnds := make([][]Event, len(self.Threads))
+	self.Data = []event.Event{} // free memory
+	threadLevelEnds := make([][]event.Event, len(self.Threads))
 
 	/*
 			n = 0
@@ -155,38 +157,38 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 		ORDER BY start_time ASC, end_time DESC
 	`
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
-		var event Event
-		event.NewEvent(query)
-		thread_idx := event.ThreadID // TODO: index into currently-active Threads, not all Threads
+		var evt event.Event
+		evt.NewEvent(query)
+		thread_idx := evt.ThreadID // TODO: index into currently-active Threads, not all Threads
 
-		if event.StartType == "START" {
-			var prevEventAtLevel *Event
+		if evt.StartType == "START" {
+			var prevEventAtLevel *event.Event
 			for {
 				endIdx := len(threadLevelEnds[thread_idx]) - 1
-				if endIdx < 0 || threadLevelEnds[thread_idx][endIdx].EndTime > event.StartTime {
+				if endIdx < 0 || threadLevelEnds[thread_idx][endIdx].EndTime > evt.StartTime {
 					break
 				}
 				prevEventAtLevel = &threadLevelEnds[thread_idx][endIdx]
 				threadLevelEnds[thread_idx] = threadLevelEnds[thread_idx][:endIdx]
 			}
-			event.Depth = len(threadLevelEnds[thread_idx])
+			evt.Depth = len(threadLevelEnds[thread_idx])
 
 			if threshold > 0.0 &&
 				prevEventAtLevel != nil &&
-				prevEventAtLevel.CanMerge(event, threshold) {
-				prevEventAtLevel.Merge(event)
+				prevEventAtLevel.CanMerge(evt, threshold) {
+				prevEventAtLevel.Merge(evt)
 				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
 			} else {
-				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], event)
-				self.Data = append(self.Data, event)
+				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], evt)
+				self.Data = append(self.Data, evt)
 			}
 		} else {
-			self.Data = append(self.Data, event)
+			self.Data = append(self.Data, evt)
 		}
 	}
 
 	setStatus("Sorting events")
-	sort.Sort(ByType(self.Data))
+	sort.Sort(event.ByType(self.Data))
 
 	log.Println("Loading: done")
 }

@@ -1,4 +1,4 @@
-package viewer
+package config
 
 import (
 	"encoding/json"
