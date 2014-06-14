@@ -264,15 +264,16 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 
 		aboutButton, _ := gtk.MenuItemNewWithLabel("About")
 		aboutButton.Connect("activate", func(btn *gtk.MenuItem) {
+			icon, _ := gdk.PixbufNewFromFile("data/context-name.svg")
 			abt, _ := gtk.AboutDialogNew()
-			// TODO: SetLogo(gdk.PixBuf)
+			abt.SetLogo(icon)
 			abt.SetProgramName(self.name)
 			abt.SetVersion(common.VERSION)
 			abt.SetCopyright("(c) 2011-2014 Shish")
 			abt.SetLicense(common.LICENSE)
 			abt.SetWrapLicense(true)
 			abt.SetWebsite("http://code.shishnet.org/context")
-			//abt.SetAuthors("Shish <webmaster@shishnet.org>")
+			//abt.SetAuthors([]string{"Shish <webmaster@shishnet.org>"})
 			abt.Show()
 		})
 		helpMenu.Append(aboutButton)
@@ -282,7 +283,7 @@ func (self *ContextViewer) __menu() *gtk.MenuBar {
 		/*
 		   t.title("Context Documentation")
 		   tx = Text(t)
-		   tx.insert("0.0", b64decode(data.README).replace("\r", ""))
+		   tx.insert("0.0", data.README.replace("\r", ""))
 		   tx.configure(state="disabled")
 		   tx.focus_set()
 		*/
