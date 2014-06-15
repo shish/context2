@@ -133,7 +133,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		openButton.Connect("activate", func() {
 			var filename *string
 
-			// TODO: pick a file
+			// FIXME: pick a file
 			//dialog := gtk.FileChooserNew()//title="Select a File", action=gtk.FILE_CHOOSER_ACTION_OPEN,
 			//buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
 
@@ -489,7 +489,12 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 	})
 	canvas.AddEvents(
 			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
-			gdk.SCROLL_MASK | gdk.POINTER_MOTION_MASK)
+			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK |
+			gdk.EXPOSURE_MASK)
+	canvas.Connect("damage-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		//log.Println(evt.area)
+		log.Println("exposed")
+	})
 	canvas.Connect("motion-notify-event", func(widget *gtk.DrawingArea, gevt *gdk.Event) {
 		var x, y float64
 		gevt.GetCoords(&x, &y)
@@ -510,7 +515,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			pps := viewWidth / event.Length()
 			self.SetScale(pps)
 
-			// TODO: move the view so that the selected (item x1 = left edge of screen + padding)
+			// FIXME: move the view so that the selected (item x1 = left edge of screen + padding)
 			//startFrac := (event.StartTime - self.config.Render.Start) / self.config.Render.Length
 			//adj := gtk.AdjustmentNew()
 			//canvasScrollPane.SetHAdjustment(adj)
@@ -522,16 +527,16 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		var x, y float64
 		evt.GetCoords(&x, &y)
 		log.Println("Grid scroll", x, y)
-		// TODO: mouse wheel zoom
-	/*
-	   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
-	   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
+		// TODO: mouse wheel zoom?
+		/*
+		   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
+		   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
 
-	   # in windows, mouse wheel events always go to the root window o_O
-	   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
-	       e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
-	   ))
-	*/
+		   # in windows, mouse wheel events always go to the root window o_O
+		   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
+			   e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
+		   ))
+		*/
 	})
 
 	canvasScrollPane.Add(canvas)
@@ -550,18 +555,10 @@ func (self *ContextViewer) buildScrubber() *gtk.Grid {
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetSizeRequest(200, SCRUBBER_HEIGHT)
 	canvas.SetHExpand(true)
-	// TODO: render at actual size
-	//canvas.Connect("size-allocate", func(widget *gtk.DrawingArea, alloc *gtk.Allocation) {
-	//})h
-	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
-		//GtkAllocation* alloc = g_new(GtkAllocation, 1);
-		//gtk_widget_get_allocation(widget, alloc);
-		//printf("widget size is currently %dx%d\n",alloc->width, alloc->height);
-		//g_free(alloc);
-		//width, _ := widget.GetSizeRequest()
-		self.renderScrubber(cr, 500.0)
-	})
 	canvas.AddEvents(gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK)
+	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
+		self.renderScrubber(cr, float64(widget.GetAllocatedWidth()))
+	})
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)

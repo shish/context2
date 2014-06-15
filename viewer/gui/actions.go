@@ -71,7 +71,7 @@ func (self *ContextViewer) SetScale(scale float64) {
 func (self *ContextViewer) Update() {
 	// free old data
 	self.data.Data = []event.Event{}
-	// TODO: reset canvas scroll position
+	// FIXME: reset canvas scroll position
 	self.canvas.QueueDraw()
 
 	/*go*/ func() {
@@ -84,6 +84,11 @@ func (self *ContextViewer) Update() {
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
+	if (y < HEADER_HEIGHT ||
+	    y > float64(HEADER_HEIGHT + (BLOCK_HEIGHT * self.config.Render.MaxDepth) * len(self.data.Threads))) {
+		return nil
+	}
+
 	yRel := y - float64(HEADER_HEIGHT)
 	threadID := int(yRel / float64(BLOCK_HEIGHT * self.config.Render.MaxDepth))
 	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.MaxDepth)) / BLOCK_HEIGHT
@@ -92,7 +97,10 @@ func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
 	ts := self.config.Render.Start + ((x / width) * self.config.Render.Length)
 	//log.Printf("Click is thread %d depth %d at timestamp %.2f\n", threadID, depth, ts)
 
-	// TODO: binary search? Events should be in startDate order
+	// binary search? Events should be in startDate order...
+	// though different threads are all mixed together.
+	// binary search for first event with startTime > mousePos,
+	// then iterate backwards skipping over unrelated threads?
 	for _, event := range self.data.Data {
 		if (event.StartTime < ts && event.EndTime > ts &&
 		event.ThreadID == threadID && event.Depth == depth) {

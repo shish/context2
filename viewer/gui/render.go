@@ -28,7 +28,7 @@ func (self *ContextViewer) renderScrubber(cr *cairo.Context, width float64) {
 	for n, el := range self.data.Summary {
 		fraction := float64(el) / float64(activityPeak)
 		cr.SetSourceRGB(fraction, 1.0-fraction, 0.0)
-		cr.Rectangle(float64(n)/length*width, 0, width/length, SCRUBBER_HEIGHT)
+		cr.Rectangle(math.Floor(float64(n)/length*width), 0, math.Floor(width/length)+1.0, SCRUBBER_HEIGHT)
 		cr.Fill()
 	}
 
