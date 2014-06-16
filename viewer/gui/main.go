@@ -91,13 +91,18 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 		log.Fatal("Unable to create label:", err)
 	}
 
-	grid, err := gtk.GridNew()
-	grid.Attach(menuBar, 0, 0, 2, 1)
-	grid.Attach(controls, 0, 1, 2, 1)
-	grid.Attach(bookmarks, 0, 2, 1, 1)
-	grid.Attach(canvas, 1, 2, 1, 1)
-	grid.Attach(scrubber, 0, 3, 2, 1)
-	grid.Attach(status, 0, 4, 2, 1)
+	pane, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
+	pane.Pack1(bookmarks, true, false)
+	pane.Pack2(canvas, true, false)
+	pane.SetPosition(200)
+
+	grid, _ := gtk.GridNew()
+	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
+	grid.Add(menuBar)
+	grid.Add(controls)
+	grid.Add(pane)
+	grid.Add(scrubber)
+	grid.Add(status)
 	master.Add(grid)
 
 	self.bookmarkPanel = bookmarks
@@ -416,6 +421,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	// TODO: have SetStart affect this
 	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
 	bookmarkScrollPane.SetSizeRequest(250, 200)
+	bookmarkScrollPane.SetHExpand(true)
 	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.Bookmarks)
 	bookmarkView.SetVExpand(true)
 	bookmarkView.Connect("row-activated", func(bv *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
@@ -481,22 +487,15 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetHExpand(true)
 	canvas.SetVExpand(true)
+	canvas.AddEvents(
+			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
+			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
 		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.MaxDepth)
 		widget.SetSizeRequest(width, height)
 		self.renderCanvas(cr, width, height)
 	})
-	canvas.AddEvents(
-			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
-			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK |
-			gdk.EXPOSURE_MASK | gdk.VISIBILITY_NOTIFY_MASK)
-	/*
-	canvas.Connect("event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
-		//log.Println(evt.area)
-		log.Println(evt)
-	})
-	*/
 	canvas.Connect("damage-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		//log.Println(evt.area)
 		log.Println("exposed")
@@ -507,7 +506,6 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		evt := self.getEventAt(x, y)
 		if !event.CmpEvent(evt, self.activeEvent) {
 			self.activeEvent = evt
-			//log.Println("Active event now", evt)
 			self.canvas.QueueDraw()  // don't do a full redraw
 		}
 	})

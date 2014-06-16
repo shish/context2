@@ -77,8 +77,9 @@ func (self *ContextViewer) renderCanvas(cr *cairo.Context, width, height int) {
 		self.renderBase(bufferCr)
 		self.renderData(bufferCr)
 	}
+	// TODO: only copy visible area
 	cr.SetSourceSurface(self.buffer, 0, 0)
-	cr.Rectangle(0.5, 0.5, float64(width), float64(height))
+	cr.Rectangle(0, 0, float64(width), float64(height))
 	cr.Fill()
 
 	if self.activeEvent != nil {
