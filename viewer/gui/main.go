@@ -29,6 +29,7 @@ type ContextViewer struct {
 	// GUI
 	master        *gtk.Window
 	canvas        *gtk.DrawingArea
+	buffer        *cairo.Surface
 	scrubber      *gtk.DrawingArea
 	status        *gtk.Statusbar
 	bookmarkPanel *gtk.Grid
@@ -185,7 +186,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		showBookmarksButton.SetActive(self.config.Render.Bookmarks)
 		showBookmarksButton.Connect("activate", func() {
 			self.config.Render.Bookmarks = showBookmarksButton.GetActive()
-			self.canvas.QueueDraw()
+			self.redraw()
 		})
 		viewMenu.Append(showBookmarksButton)
 
@@ -354,7 +355,7 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 		if self.controls.active {
 			log.Println("Settings: scale =", sb.GetValue())
 			self.SetScale(sb.GetValue())
-			self.canvas.QueueDraw()
+			self.redraw()
 		}
 	})
 	gridTop.Add(scale)
@@ -484,13 +485,12 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
 		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.MaxDepth)
 		widget.SetSizeRequest(width, height)
-		self.renderBase(cr)
-		self.renderData(cr)
+		self.renderCanvas(cr, width, height)
 	})
 	canvas.AddEvents(
 			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK |
-			gdk.EXPOSURE_MASK)
+			gdk.EXPOSURE_MASK | gdk.VISIBILITY_NOTIFY_MASK)
 	/*
 	canvas.Connect("event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		//log.Println(evt.area)
@@ -507,8 +507,8 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		evt := self.getEventAt(x, y)
 		if !event.CmpEvent(evt, self.activeEvent) {
 			self.activeEvent = evt
-			log.Println("Active event now", evt)
-			self.canvas.QueueDraw()
+			//log.Println("Active event now", evt)
+			self.canvas.QueueDraw()  // don't do a full redraw
 		}
 	})
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
@@ -525,7 +525,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			//adj := gtk.AdjustmentNew()
 			//canvasScrollPane.SetHAdjustment(adj)
 
-			self.canvas.QueueDraw()
+			self.redraw()
 		}
 	})
 	canvas.Connect("scroll-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
@@ -567,13 +567,13 @@ func (self *ContextViewer) buildScrubber() *gtk.Grid {
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
-		width := 500.0
+		width := float64(widget.GetAllocatedWidth())
 		clickStart = x / width
 	})
 	canvas.Connect("button-release-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		var x, y float64
 		evt.GetCoords(&x, &y)
-		width := 500.0
+		width := float64(widget.GetAllocatedWidth())
 		clickEnd = x / width
 
 		if clickStart > clickEnd {

@@ -24,7 +24,7 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 	self.scrubber.QueueDraw()
 
 	// render canvas with empty data first, then load the data
-	self.canvas.QueueDraw()
+	self.redraw()
 	self.SetStart(self.data.LogStart)
 	self.Update()
 }
@@ -65,22 +65,27 @@ func (self *ContextViewer) SetScale(scale float64) {
 
 	self.controls.scale.SetValue(scale)
 	self.config.Render.Scale = scale
-	//self.canvas.QueueDraw()
+	//self.redraw()
 }
 
 func (self *ContextViewer) Update() {
 	// free old data
 	self.data.Data = []event.Event{}
 	// FIXME: reset canvas scroll position
-	self.canvas.QueueDraw()
+	self.redraw()
 
 	/*go*/ func() {
 		self.data.LoadEvents(
 			self.config.Render.Start, self.config.Render.Length,
 			self.config.Render.Coalesce, self.config.Render.Cutoff,
 			self.setStatus)
-		self.canvas.QueueDraw()
+		self.redraw()
 	}()
+}
+
+func (self *ContextViewer) redraw() {
+	self.buffer = nil
+	self.canvas.QueueDraw()
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {

@@ -70,6 +70,22 @@ func (self *ContextViewer) renderScrubber(cr *cairo.Context, width float64) {
 	line(start, SCRUBBER_HEIGHT/2, end, SCRUBBER_HEIGHT/2)
 }
 
+func (self *ContextViewer) renderCanvas(cr *cairo.Context, width, height int) {
+	if self.buffer == nil {
+		self.buffer = cairo.ImageSurfaceCreate(cairo.FORMAT_ARGB32, width, height)
+		bufferCr := cairo.Create(self.buffer)
+		self.renderBase(bufferCr)
+		self.renderData(bufferCr)
+	}
+	cr.SetSourceSurface(self.buffer, 0, 0)
+	cr.Rectangle(0.5, 0.5, float64(width), float64(height))
+	cr.Fill()
+
+	if self.activeEvent != nil {
+		self.showTip(cr, self.activeEvent, self.config.Render.Start, self.config.Render.Scale, self.activeEvent.ThreadID)
+	}
+}
+
 func (self *ContextViewer) renderBase(cr *cairo.Context) {
 	// common settings
 	cr.SetLineWidth(1.0)
@@ -113,6 +129,7 @@ func (self *ContextViewer) renderBase(cr *cairo.Context) {
 }
 
 func (self *ContextViewer) renderData(cr *cairo.Context) {
+	cr.SetLineWidth(1.0)
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
 
@@ -148,10 +165,6 @@ func (self *ContextViewer) renderData(cr *cairo.Context) {
 			self.showLock(cr, &event, _rs, _sc, thread_idx)
 		}
 	}
-
-	if self.activeEvent != nil {
-		self.showTip(cr, self.activeEvent, _rs, _sc, self.activeEvent.ThreadID)
-	}
 }
 
 func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
@@ -186,6 +199,10 @@ func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset
 }
 
 func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
+	cr.SetLineWidth(1.0)
+	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+	cr.SetFontSize(10)
+
 	start_px := (evt.StartTime - offset_time) * scale_factor
 	length_px := 200.0 // evt.Length() * scale_factor
 	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
