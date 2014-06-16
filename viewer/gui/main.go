@@ -491,6 +491,12 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK |
 			gdk.EXPOSURE_MASK)
+	/*
+	canvas.Connect("event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
+		//log.Println(evt.area)
+		log.Println(evt)
+	})
+	*/
 	canvas.Connect("damage-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
 		//log.Println(evt.area)
 		log.Println("exposed")
@@ -511,8 +517,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		event := self.getEventAt(x, y)
 
 		if event != nil {
-			viewWidth := 500.0 // FIXME
-			pps := viewWidth / event.Length()
+			pps := float64(canvasScrollPane.GetAllocatedWidth()-20) / event.Length()
 			self.SetScale(pps)
 
 			// FIXME: move the view so that the selected (item x1 = left edge of screen + padding)

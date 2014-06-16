@@ -187,7 +187,7 @@ func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset
 
 func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
 	start_px := (evt.StartTime - offset_time) * scale_factor
-	length_px := evt.Length() * scale_factor
+	length_px := 200.0 // evt.Length() * scale_factor
 	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	cr.SetSourceRGB(1.0, 1.0, 0.65)
@@ -199,7 +199,7 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 	cr.Stroke()
 
 	cr.Save()
-	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Max(0, math.Floor(length_px)-5), BLOCK_HEIGHT*2)
 	cr.Clip()
 	cr.SetSourceRGB(0.2, 0.2, 0.2)
 	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70 + BLOCK_HEIGHT)
