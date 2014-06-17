@@ -68,6 +68,18 @@ func (self *ContextViewer) SetScale(scale float64) {
 	//self.redraw()
 }
 
+func (self *ContextViewer) SetDepth(depth int) {
+	self.controls.active = false
+	defer func() { self.controls.active = true }()
+
+	if depth < 1 { depth = 1 }
+	if depth > 20 { depth = 20 }
+
+	self.controls.depth.SetValue(float64(depth))
+	self.config.Render.Depth = depth
+	//self.redraw()
+}
+
 func (self *ContextViewer) Update() {
 	// free old data
 	self.data.Data = []event.Event{}
@@ -90,13 +102,13 @@ func (self *ContextViewer) redraw() {
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
 	if (y < HEADER_HEIGHT ||
-	    y > float64(HEADER_HEIGHT + (BLOCK_HEIGHT * self.config.Render.MaxDepth) * len(self.data.Threads))) {
+	    y > float64(HEADER_HEIGHT + (BLOCK_HEIGHT * self.config.Render.Depth) * len(self.data.Threads))) {
 		return nil
 	}
 
 	yRel := y - float64(HEADER_HEIGHT)
-	threadID := int(yRel / float64(BLOCK_HEIGHT * self.config.Render.MaxDepth))
-	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.MaxDepth)) / BLOCK_HEIGHT
+	threadID := int(yRel / float64(BLOCK_HEIGHT * self.config.Render.Depth))
+	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.Depth)) / BLOCK_HEIGHT
 
 	width := self.config.Render.Scale * self.config.Render.Length
 	ts := self.config.Render.Start + ((x / width) * self.config.Render.Length)

@@ -100,7 +100,7 @@ func (self *ContextViewer) renderBase(cr *cairo.Context) {
 	}
 
 	width := self.config.Render.Scale * self.config.Render.Length
-	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.MaxDepth*BLOCK_HEIGHT)
+	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.Depth*BLOCK_HEIGHT)
 
 	// blank canvas
 	cr.SetSourceRGB(1, 1, 1)
@@ -120,11 +120,11 @@ func (self *ContextViewer) renderBase(cr *cairo.Context) {
 	cr.SetSourceRGB(0.75, 0.75, 0.75)
 	cr.SetLineWidth(1.0)
 	for n, _ := range self.data.Threads {
-		y := float64(HEADER_HEIGHT + self.config.Render.MaxDepth*BLOCK_HEIGHT*n)
+		y := float64(HEADER_HEIGHT + self.config.Render.Depth*BLOCK_HEIGHT*n)
 		line(0, y, width, y)
 
 		cr.SetSourceRGB(0.4, 0.4, 0.4)
-		cr.MoveTo(3.0, float64(HEADER_HEIGHT+self.config.Render.MaxDepth*BLOCK_HEIGHT*(n+1)-5))
+		cr.MoveTo(3.0, float64(HEADER_HEIGHT+self.config.Render.Depth*BLOCK_HEIGHT*(n+1)-5))
 		cr.ShowText(self.data.Threads[n])
 	}
 }
@@ -147,7 +147,7 @@ func (self *ContextViewer) renderData(cr *cairo.Context) {
 			if (event.EndTime-event.StartTime)*1000 < _rc {
 				continue
 			}
-			if event.Depth >= self.config.Render.MaxDepth {
+			if event.Depth >= self.config.Render.Depth {
 				continue
 			}
 			shown += 1
@@ -173,7 +173,7 @@ func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset
 
 	start_px := (evt.StartTime - offset_time) * scale_factor
 	length_px := evt.Length() * scale_factor
-	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
+	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	if ok {
 		cr.SetSourceRGB(0.8, 1.0, 0.8)
@@ -206,7 +206,7 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 
 	start_px := (evt.StartTime - offset_time) * scale_factor
 	length_px := 200.0 // evt.Length() * scale_factor
-	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
+	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	cr.SetSourceRGB(1.0, 1.0, 0.65)
 	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
@@ -237,26 +237,26 @@ func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_
 		cr.SetSourceRGB(0.85, 0.85, 1.0)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.MaxDepth*BLOCK_HEIGHT),
-		length_px, float64(self.config.Render.MaxDepth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.Depth*BLOCK_HEIGHT),
+		length_px, float64(self.config.Render.Depth*BLOCK_HEIGHT),
 	)
 	cr.Fill()
 
 	cr.SetSourceRGB(0.5, 0.5, 0.5)
 	cr.Save()
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.MaxDepth*BLOCK_HEIGHT),
-		length_px-5, float64(self.config.Render.MaxDepth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.Depth*BLOCK_HEIGHT),
+		length_px-5, float64(self.config.Render.Depth*BLOCK_HEIGHT),
 	)
 	cr.Clip()
-	cr.MoveTo(start_px+5, float64(HEADER_HEIGHT+(thread+1)*self.config.Render.MaxDepth*BLOCK_HEIGHT)-5)
+	cr.MoveTo(start_px+5, float64(HEADER_HEIGHT+(thread+1)*self.config.Render.Depth*BLOCK_HEIGHT)-5)
 	cr.ShowText(evt.Text())
 	cr.Restore()
 }
 
 func (self *ContextViewer) showBookmark(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64) {
 	start_px := math.Floor((evt.StartTime - offset_time) * scale_factor)
-	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.MaxDepth*BLOCK_HEIGHT)
+	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.Depth*BLOCK_HEIGHT)
 
 	cr.SetSourceRGB(1.0, 0.5, 0.0)
 	cr.MoveTo(start_px+0.5, HEADER_HEIGHT)

@@ -45,6 +45,7 @@ type ContextViewer struct {
 		start  *gtk.SpinButton
 		length *gtk.SpinButton
 		scale  *gtk.SpinButton
+		depth  *gtk.SpinButton
 	}
 }
 
@@ -366,6 +367,21 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 	gridTop.Add(scale)
 	self.controls.scale = scale
 
+	l, _ = gtk.LabelNew("  Depth ")
+	gridTop.Add(l)
+
+	depth, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 1.0)
+	depth.SetValue(float64(self.config.Render.Depth))
+	depth.Connect("value-changed", func(sb *gtk.SpinButton) {
+		if self.controls.active {
+			log.Println("Settings: depth =", sb.GetValue())
+			self.SetDepth(int(sb.GetValue()))
+			self.redraw()
+		}
+	})
+	gridTop.Add(depth)
+	self.controls.depth = depth
+
 	//-----------------------------------------------------------------
 	/*
 		gridBot, _ := gtk.GridNew()
@@ -492,7 +508,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
-		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.MaxDepth)
+		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.Depth)
 		widget.SetSizeRequest(width, height)
 		self.renderCanvas(cr, width, height)
 	})
