@@ -45,6 +45,7 @@ type ContextViewer struct {
 		start  *gtk.SpinButton
 		length *gtk.SpinButton
 		scale  *gtk.SpinButton
+		depth  *gtk.SpinButton
 	}
 }
 
@@ -366,48 +367,61 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 	gridTop.Add(scale)
 	self.controls.scale = scale
 
+	l, _ = gtk.LabelNew("  Depth ")
+	gridTop.Add(l)
+
+	depth, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 1.0)
+	depth.SetValue(float64(self.config.Render.Depth))
+	depth.Connect("value-changed", func(sb *gtk.SpinButton) {
+		if self.controls.active {
+			log.Println("Settings: depth =", sb.GetValue())
+			self.SetDepth(int(sb.GetValue()))
+			self.redraw()
+		}
+	})
+	gridTop.Add(depth)
+	self.controls.depth = depth
+
 	//-----------------------------------------------------------------
-	/*
-		gridBot, _ := gtk.GridNew()
-		gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	gridBot, _ := gtk.GridNew()
+	gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 
-		l, _ = gtk.LabelNew(" Cutoff (ms) ")
-		gridBot.Add(l)
+	l, _ = gtk.LabelNew(" Cutoff ")
+	gridBot.Add(l)
 
-		cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-		cutoff.SetValue(self.config.Render.Cutoff * 1000)
-		cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
-			log.Println("Settings: cutoff =", sb.GetValue())
-			self.config.Render.Cutoff = sb.GetValue() / 1000
-			self.Update()
-		})
-		gridBot.Add(cutoff)
+	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
+	cutoff.SetValue(self.config.Render.Cutoff)
+	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: cutoff =", sb.GetValue())
+		self.config.Render.Cutoff = sb.GetValue()
+		self.Update()
+	})
+	gridBot.Add(cutoff)
 
-		l, _ = gtk.LabelNew("  Coalesce (ms) ")
-		gridBot.Add(l)
+	l, _ = gtk.LabelNew("  Coalesce ")
+	gridBot.Add(l)
 
-		coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-		coalesce.SetValue(self.config.Render.Coalesce * 1000)
-		coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
-			log.Println("Settings: coalesce =", sb.GetValue())
-			self.config.Render.Coalesce = sb.GetValue() / 1000
-			self.Update()
-		})
-		gridBot.Add(coalesce)
+	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
+	coalesce.SetValue(self.config.Render.Coalesce)
+	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: coalesce =", sb.GetValue())
+		self.config.Render.Coalesce = sb.GetValue()
+		self.Update()
+	})
+	gridBot.Add(coalesce)
 
-		renderButton, _ := gtk.ButtonNewWithLabel("Render!")
-		renderButton.Connect("clicked", func(sb *gtk.Button) {
-			self.Update()
-		})
-		gridBot.Add(renderButton)
-	*/
+	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
+	renderButton.Connect("clicked", func(sb *gtk.Button) {
+		self.Update()
+	})
+	gridBot.Add(renderButton)
+
 	//-----------------------------------------------------------------
 
 	grid, _ := gtk.GridNew()
 	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
 	grid.Add(gridTop)
 	//grid.Add(gridBot)
-
 	return grid
 }
 
@@ -492,7 +506,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
-		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.MaxDepth)
+		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.Depth)
 		widget.SetSizeRequest(width, height)
 		self.renderCanvas(cr, width, height)
 	})

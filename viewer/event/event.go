@@ -42,7 +42,7 @@ func (self *Event) NewEvent(query *sqlite3.Stmt) {
 func (self *Event) CanMerge(other Event, threshold float64) bool {
 	return (other.Depth == self.Depth &&
 		other.ThreadID == self.ThreadID &&
-		other.StartTime-self.EndTime < 0.001 &&
+		other.StartTime-self.EndTime < 0.01 &&
 		other.Length() < threshold &&
 		other.startText == self.startText)
 }

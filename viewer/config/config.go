@@ -11,7 +11,7 @@ type Config struct {
 		Start     float64
 		Length    float64
 		Scale     float64
-		MaxDepth  int
+		Depth     int
 		Cutoff    float64
 		Coalesce  float64
 		Bookmarks bool
@@ -33,7 +33,7 @@ func (self *Config) Default() {
 	self.Render.Start = 0
 	self.Render.Length = 20.0
 	self.Render.Scale = 50.0
-	self.Render.MaxDepth = 7
+	self.Render.Depth = 7
 	self.Render.Cutoff = 0.0
 	self.Render.Coalesce = 0.0
 	self.Render.Bookmarks = false
