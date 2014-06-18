@@ -138,26 +138,26 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
 		openButton.Connect("activate", func() {
-			var filename *string
-
-			// FIXME: pick a file
-			//dialog := gtk.FileChooserNew()//title="Select a File", action=gtk.FILE_CHOOSER_ACTION_OPEN,
-			//buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
-
 			/*
-				   filename = askopenfilename(
-					   filetypes=[
-						   ("All Supported Types", "*.ctxt *.cbin"),
-						   ("Context Text", "*.ctxt"),
-						   ("Context Binary", "*.cbin")
-					   ],
-					   initialdir=self._last_log_dir
-				   )
+				// TODO
+			   filetypes=[
+				   ("All Supported Types", "*.ctxt *.cbin"),
+				   ("Context Text", "*.ctxt"),
+				   ("Context Binary", "*.cbin")
+			   ],
+			   initialdir=self._last_log_dir
 			*/
-			if filename != nil {
-				self.config.Gui.LastLogDir = filepath.Dir(*filename)
-				self.LoadFile(*filename)
+			dialog, _:= gtk.FileChooserDialogNew2(
+				"Open File", self.master, gtk.FILE_CHOOSER_ACTION_OPEN,
+				"Cancel", gtk.RESPONSE_CANCEL,
+				"Open", gtk.RESPONSE_ACCEPT)
+			if (gtk.ResponseType)(dialog.Run()) == gtk.RESPONSE_ACCEPT {
+				filename := dialog.GetFilename()
+				self.config.Gui.LastLogDir = filepath.Dir(filename)
+				self.LoadFile(filename)
 			}
+
+			dialog.Destroy()
 		})
 		fileMenu.Append(openButton)
 
