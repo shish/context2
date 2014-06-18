@@ -204,7 +204,7 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
 
-	start_px := (evt.StartTime - offset_time) * scale_factor
+	start_px := math.Max(0, (evt.StartTime - offset_time) * scale_factor)
 	length_px := 200.0 // evt.Length() * scale_factor
 	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.MaxDepth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
