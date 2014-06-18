@@ -131,7 +131,6 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	defer setStatus("")
 	s := renderStart
 	e := renderStart + renderLen
-	threshold := float64(coalesce)
 	self.Data = []event.Event{} // free memory
 	threadLevelEnds := make([][]event.Event, len(self.Threads))
 
@@ -173,10 +172,11 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 			}
 			evt.Depth = len(threadLevelEnds[thread_idx])
 
-			if threshold > 0.0 &&
+			if coalesce > 0.0 &&
 				prevEventAtLevel != nil &&
-				prevEventAtLevel.CanMerge(evt, threshold) {
+				prevEventAtLevel.CanMerge(evt, coalesce) {
 				prevEventAtLevel.Merge(evt)
+				//log.Printf("%.2f %.2f\n", prevEventAtLevel.StartTime, prevEventAtLevel.EndTime)
 				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
 			} else {
 				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], evt)

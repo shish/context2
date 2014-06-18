@@ -383,47 +383,45 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 	self.controls.depth = depth
 
 	//-----------------------------------------------------------------
-	/*
-		gridBot, _ := gtk.GridNew()
-		gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	gridBot, _ := gtk.GridNew()
+	gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 
-		l, _ = gtk.LabelNew(" Cutoff (ms) ")
-		gridBot.Add(l)
+	l, _ = gtk.LabelNew(" Cutoff ")
+	gridBot.Add(l)
 
-		cutoff, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-		cutoff.SetValue(self.config.Render.Cutoff * 1000)
-		cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
-			log.Println("Settings: cutoff =", sb.GetValue())
-			self.config.Render.Cutoff = sb.GetValue() / 1000
-			self.Update()
-		})
-		gridBot.Add(cutoff)
+	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
+	cutoff.SetValue(self.config.Render.Cutoff)
+	cutoff.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: cutoff =", sb.GetValue())
+		self.config.Render.Cutoff = sb.GetValue()
+		self.Update()
+	})
+	gridBot.Add(cutoff)
 
-		l, _ = gtk.LabelNew("  Coalesce (ms) ")
-		gridBot.Add(l)
+	l, _ = gtk.LabelNew("  Coalesce ")
+	gridBot.Add(l)
 
-		coalesce, _ := gtk.SpinButtonNewWithRange(0, 1000, 10.0)
-		coalesce.SetValue(self.config.Render.Coalesce * 1000)
-		coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
-			log.Println("Settings: coalesce =", sb.GetValue())
-			self.config.Render.Coalesce = sb.GetValue() / 1000
-			self.Update()
-		})
-		gridBot.Add(coalesce)
+	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
+	coalesce.SetValue(self.config.Render.Coalesce)
+	coalesce.Connect("value-changed", func(sb *gtk.SpinButton) {
+		log.Println("Settings: coalesce =", sb.GetValue())
+		self.config.Render.Coalesce = sb.GetValue()
+		self.Update()
+	})
+	gridBot.Add(coalesce)
 
-		renderButton, _ := gtk.ButtonNewWithLabel("Render!")
-		renderButton.Connect("clicked", func(sb *gtk.Button) {
-			self.Update()
-		})
-		gridBot.Add(renderButton)
-	*/
+	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
+	renderButton.Connect("clicked", func(sb *gtk.Button) {
+		self.Update()
+	})
+	gridBot.Add(renderButton)
+
 	//-----------------------------------------------------------------
 
 	grid, _ := gtk.GridNew()
 	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
 	grid.Add(gridTop)
 	//grid.Add(gridBot)
-
 	return grid
 }
 
