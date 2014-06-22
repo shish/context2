@@ -43,6 +43,10 @@ func (self *ContextViewer) SetStart(ts float64) {
 
 		self.controls.start.SetValue(ts)
 		self.config.Render.Start = ts
+
+		adj := self.canvasScroll.GetHAdjustment()
+		adj.SetValue(0)
+
 		self.scrubber.QueueDraw()
 	}
 }
@@ -83,7 +87,6 @@ func (self *ContextViewer) SetDepth(depth int) {
 func (self *ContextViewer) Update() {
 	// free old data
 	self.data.Data = []event.Event{}
-	// FIXME: reset canvas scroll position
 	self.redraw()
 
 	/*go*/ func() {

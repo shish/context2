@@ -28,6 +28,7 @@ type ContextViewer struct {
 	name          string
 	// GUI
 	master        *gtk.Window
+	canvasScroll  *gtk.ScrolledWindow
 	canvas        *gtk.DrawingArea
 	buffer        *cairo.Surface
 	scrubber      *gtk.DrawingArea
@@ -495,8 +496,8 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 func (self *ContextViewer) buildCanvas() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
-	canvasScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
-	canvasScrollPane.SetSizeRequest(200, 200)
+	canvasScroll, _ := gtk.ScrolledWindowNew(nil, nil)
+	canvasScroll.SetSizeRequest(200, 200)
 
 	canvas, _ := gtk.DrawingAreaNew()
 	canvas.SetHExpand(true)
@@ -529,13 +530,15 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		event := self.getEventAt(x, y)
 
 		if event != nil {
-			pps := float64(canvasScrollPane.GetAllocatedWidth()-20) / event.Length()
+			padding := 10.0
+
+			pps := (float64(canvasScroll.GetAllocatedWidth())-(padding*2)) / event.Length()
 			self.SetScale(pps)
 
-			// FIXME: move the view so that the selected (item x1 = left edge of screen + padding)
-			//startFrac := (event.StartTime - self.config.Render.Start) / self.config.Render.Length
-			//adj := gtk.AdjustmentNew()
-			//canvasScrollPane.SetHAdjustment(adj)
+			startPos := (event.StartTime - self.config.Render.Start) * self.config.Render.Scale - padding
+
+			adj := canvasScroll.GetHAdjustment()
+			adj.SetValue(startPos)
 
 			self.redraw()
 		}
@@ -556,9 +559,10 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		*/
 	})
 
-	canvasScrollPane.Add(canvas)
-	grid.Add(canvasScrollPane)
+	canvasScroll.Add(canvas)
+	grid.Add(canvasScroll)
 
+	self.canvasScroll = canvasScroll
 	self.canvas = canvas
 
 	return grid

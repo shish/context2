@@ -196,15 +196,18 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 func (self *Data) LoadBookmarks() {
 	log.Println("Loading: bookmarks")
 
+	n := 0
 	self.Bookmarks.Clear()
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+		if n % 1000 == 0 {
+			log.Printf("Loaded %d bookmarks\n", n)
+		}
+		n++
 		var startTime float64
 		var startText, endText string
 		query.Scan(&startTime, &startText, &endText)
-
-		itemPtr := self.Bookmarks.Append()
 
 		var timePos float64
 		if self.config.Bookmarks.Absolute {
@@ -215,6 +218,8 @@ func (self *Data) LoadBookmarks() {
 
 		timeText := time.Unix(int64(timePos), 0).Format(self.config.Bookmarks.Format)
 		text := fmt.Sprintf("%s: %s", timeText, startText)
+
+		itemPtr := self.Bookmarks.Append()
 		self.Bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{startTime, text})
 	}
 }

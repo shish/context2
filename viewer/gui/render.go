@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"math"
+	"log"
 	// gtk
 	"github.com/conformal/gotk3/cairo"
 	"../../common"
@@ -72,6 +73,7 @@ func (self *ContextViewer) renderScrubber(cr *cairo.Context, width float64) {
 
 func (self *ContextViewer) renderCanvas(cr *cairo.Context, width, height int) {
 	if self.buffer == nil {
+		log.Printf("Creating canvas buffer %dx%d\n", width, height)
 		self.buffer = cairo.ImageSurfaceCreate(cairo.FORMAT_ARGB32, width, height)
 		bufferCr := cairo.Create(self.buffer)
 		self.renderBase(bufferCr)
