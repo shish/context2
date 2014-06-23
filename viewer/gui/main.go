@@ -140,7 +140,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
 		openButton.Connect("activate", func() {
 			/*
-				// TODO
+				// TODO: filter by extension in file open dialog box
 			   filetypes=[
 				   ("All Supported Types", "*.ctxt *.cbin"),
 				   ("Context Text", "*.ctxt"),

@@ -158,28 +158,28 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var evt event.Event
 		evt.NewEvent(query)
-		thread_idx := evt.ThreadID // TODO: index into currently-active Threads, not all Threads
+		evt.ThreadIndex := evt.ThreadID // TODO: index into currently-active Threads, not all Threads
 
 		if evt.StartType == "START" {
 			var prevEventAtLevel *event.Event
 			for {
-				endIdx := len(threadLevelEnds[thread_idx]) - 1
-				if endIdx < 0 || threadLevelEnds[thread_idx][endIdx].EndTime > evt.StartTime {
+				endIdx := len(threadLevelEnds[evt.ThreadIndex]) - 1
+				if endIdx < 0 || threadLevelEnds[evt.ThreadIndex][endIdx].EndTime > evt.StartTime {
 					break
 				}
-				prevEventAtLevel = &threadLevelEnds[thread_idx][endIdx]
-				threadLevelEnds[thread_idx] = threadLevelEnds[thread_idx][:endIdx]
+				prevEventAtLevel = &threadLevelEnds[evt.ThreadIndex][endIdx]
+				threadLevelEnds[evt.ThreadIndex] = threadLevelEnds[evt.ThreadIndex][:endIdx]
 			}
-			evt.Depth = len(threadLevelEnds[thread_idx])
+			evt.Depth = len(threadLevelEnds[evt.ThreadIndex])
 
 			if coalesce > 0.0 &&
 				prevEventAtLevel != nil &&
 				prevEventAtLevel.CanMerge(evt, coalesce) {
 				prevEventAtLevel.Merge(evt)
 				//log.Printf("%.2f %.2f\n", prevEventAtLevel.StartTime, prevEventAtLevel.EndTime)
-				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], *prevEventAtLevel)
+				threadLevelEnds[evt.ThreadIndex] = append(threadLevelEnds[evt.ThreadIndex], *prevEventAtLevel)
 			} else {
-				threadLevelEnds[thread_idx] = append(threadLevelEnds[thread_idx], evt)
+				threadLevelEnds[evt.ThreadIndex] = append(threadLevelEnds[evt.ThreadIndex], evt)
 				self.Data = append(self.Data, evt)
 			}
 		} else {

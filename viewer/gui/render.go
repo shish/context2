@@ -85,7 +85,7 @@ func (self *ContextViewer) renderCanvas(cr *cairo.Context, width, height int) {
 	cr.Fill()
 
 	if self.activeEvent != nil {
-		self.showTip(cr, self.activeEvent, self.config.Render.Start, self.config.Render.Scale, self.activeEvent.ThreadID)
+		self.showTip(cr, self.activeEvent, self.config.Render.Start, self.config.Render.Scale)
 	}
 }
 
@@ -142,8 +142,6 @@ func (self *ContextViewer) renderData(cr *cairo.Context) {
 
 	shown := 0
 	for _, event := range self.data.Data {
-		thread_idx := event.ThreadID
-
 		switch {
 		case event.StartType == "START":
 			if (event.EndTime-event.StartTime)*1000 < _rc {
@@ -157,7 +155,7 @@ func (self *ContextViewer) renderData(cr *cairo.Context) {
 				self.showError("Demo Limit", "The evaluation build is limited to showing 500 events at a time, so rendering has stopped")
 				return
 			}
-			self.showEvent(cr, &event, _rs, _sc, thread_idx)
+			self.showEvent(cr, &event, _rs, _sc)
 
 		case event.StartType == "BMARK":
 			if self.config.Render.Bookmarks {
@@ -165,17 +163,17 @@ func (self *ContextViewer) renderData(cr *cairo.Context) {
 			}
 
 		case event.StartType == "LOCKW" || event.StartType == "LOCKA":
-			self.showLock(cr, &event, _rs, _sc, thread_idx)
+			self.showLock(cr, &event, _rs, _sc)
 		}
 	}
 }
 
-func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
+func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64) {
 	ok := evt.EndType == "ENDOK"
 
 	start_px := (evt.StartTime - offset_time) * scale_factor
 	length_px := evt.Length() * scale_factor
-	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
+	depth_px := float64(HEADER_HEIGHT + (evt.ThreadIndex * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	if ok {
 		cr.SetSourceRGB(0.8, 1.0, 0.8)
@@ -201,14 +199,14 @@ func (self *ContextViewer) showEvent(cr *cairo.Context, evt *event.Event, offset
 	cr.Restore()
 }
 
-func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
+func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64) {
 	cr.SetLineWidth(1.0)
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
 
 	start_px := math.Max(0, (evt.StartTime - offset_time) * scale_factor)
 	length_px := 200.0 // evt.Length() * scale_factor
-	depth_px := float64(HEADER_HEIGHT + (thread * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
+	depth_px := float64(HEADER_HEIGHT + (evt.ThreadIndex * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	cr.SetSourceRGB(1.0, 1.0, 0.65)
 	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
@@ -229,7 +227,7 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 	cr.Restore()
 }
 
-func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64, thread int) {
+func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64) {
 	start_px := (evt.StartTime - offset_time) * scale_factor
 	length_px := evt.Length() * scale_factor
 
@@ -239,7 +237,7 @@ func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_
 		cr.SetSourceRGB(0.85, 0.85, 1.0)
 	}
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.Depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+evt.ThreadIndex*self.config.Render.Depth*BLOCK_HEIGHT),
 		length_px, float64(self.config.Render.Depth*BLOCK_HEIGHT),
 	)
 	cr.Fill()
@@ -247,11 +245,11 @@ func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_
 	cr.SetSourceRGB(0.5, 0.5, 0.5)
 	cr.Save()
 	cr.Rectangle(
-		start_px, float64(HEADER_HEIGHT+thread*self.config.Render.Depth*BLOCK_HEIGHT),
+		start_px, float64(HEADER_HEIGHT+evt.ThreadIndex*self.config.Render.Depth*BLOCK_HEIGHT),
 		length_px-5, float64(self.config.Render.Depth*BLOCK_HEIGHT),
 	)
 	cr.Clip()
-	cr.MoveTo(start_px+5, float64(HEADER_HEIGHT+(thread+1)*self.config.Render.Depth*BLOCK_HEIGHT)-5)
+	cr.MoveTo(start_px+5, float64(HEADER_HEIGHT+(evt.ThreadIndex+1)*self.config.Render.Depth*BLOCK_HEIGHT)-5)
 	cr.ShowText(evt.Text())
 	cr.Restore()
 }

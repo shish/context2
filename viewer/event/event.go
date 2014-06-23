@@ -12,7 +12,8 @@ import (
 */
 type Event struct {
 	id             int
-	ThreadID       int
+	ThreadID       int  // index into the list of all threads
+	ThreadIndex int  // index into the list of currently visible threads
 	startLocation string
 	endLocation   string
 	StartTime      float64
