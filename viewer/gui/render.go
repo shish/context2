@@ -102,7 +102,7 @@ func (self *ContextViewer) renderBase(cr *cairo.Context) {
 	}
 
 	width := self.config.Render.Scale * self.config.Render.Length
-	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.Depth*BLOCK_HEIGHT)
+	height := float64(HEADER_HEIGHT + len(self.data.VisibleThreadIDs)*self.config.Render.Depth*BLOCK_HEIGHT)
 
 	// blank canvas
 	cr.SetSourceRGB(1, 1, 1)
@@ -121,13 +121,13 @@ func (self *ContextViewer) renderBase(cr *cairo.Context) {
 	// draw horizontal bars (thread)
 	cr.SetSourceRGB(0.75, 0.75, 0.75)
 	cr.SetLineWidth(1.0)
-	for n, _ := range self.data.Threads {
+	for n, _ := range self.data.VisibleThreadIDs {
 		y := float64(HEADER_HEIGHT + self.config.Render.Depth*BLOCK_HEIGHT*n)
 		line(0, y, width, y)
 
 		cr.SetSourceRGB(0.4, 0.4, 0.4)
 		cr.MoveTo(3.0, float64(HEADER_HEIGHT+self.config.Render.Depth*BLOCK_HEIGHT*(n+1)-5))
-		cr.ShowText(self.data.Threads[n])
+		cr.ShowText(self.data.Threads[self.data.VisibleThreadIDs[n]])
 	}
 }
 
@@ -256,7 +256,7 @@ func (self *ContextViewer) showLock(cr *cairo.Context, evt *event.Event, offset_
 
 func (self *ContextViewer) showBookmark(cr *cairo.Context, evt *event.Event, offset_time, scale_factor float64) {
 	start_px := math.Floor((evt.StartTime - offset_time) * scale_factor)
-	height := float64(HEADER_HEIGHT + len(self.data.Threads)*self.config.Render.Depth*BLOCK_HEIGHT)
+	height := float64(HEADER_HEIGHT + len(self.data.VisibleThreadIDs)*self.config.Render.Depth*BLOCK_HEIGHT)
 
 	cr.SetSourceRGB(1.0, 0.5, 0.0)
 	cr.MoveTo(start_px+0.5, HEADER_HEIGHT)

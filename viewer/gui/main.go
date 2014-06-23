@@ -512,7 +512,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
-		height := int(HEADER_HEIGHT + len(self.data.Threads)*BLOCK_HEIGHT*self.config.Render.Depth)
+		height := int(HEADER_HEIGHT + len(self.data.VisibleThreadIDs)*BLOCK_HEIGHT*self.config.Render.Depth)
 		widget.SetSizeRequest(width, height)
 		self.renderCanvas(cr, width, height)
 	})

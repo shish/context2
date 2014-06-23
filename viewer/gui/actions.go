@@ -113,17 +113,17 @@ func (self *ContextViewer) redraw() {
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
 	if y < HEADER_HEIGHT ||
-		y > float64(HEADER_HEIGHT+(BLOCK_HEIGHT*self.config.Render.Depth)*len(self.data.Threads)) {
+		y > float64(HEADER_HEIGHT+(BLOCK_HEIGHT*self.config.Render.Depth)*len(self.data.VisibleThreadIDs)) {
 		return nil
 	}
 
 	yRel := y - float64(HEADER_HEIGHT)
-	threadID := int(yRel / float64(BLOCK_HEIGHT*self.config.Render.Depth))
+	threadIndex := int(yRel / float64(BLOCK_HEIGHT*self.config.Render.Depth))
 	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.Depth)) / BLOCK_HEIGHT
 
 	width := self.config.Render.Scale * self.config.Render.Length
 	ts := self.config.Render.Start + ((x / width) * self.config.Render.Length)
-	//log.Printf("Click is thread %d depth %d at timestamp %.2f\n", threadID, depth, ts)
+	//log.Printf("Click is thread %d depth %d at timestamp %.2f\n", threadIndex, depth, ts)
 
 	// binary search? Events should be in startDate order...
 	// though different threads are all mixed together.
@@ -131,7 +131,7 @@ func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
 	// then iterate backwards skipping over unrelated threads?
 	for _, event := range self.data.Data {
 		if event.StartTime < ts && event.EndTime > ts &&
-			event.ThreadID == threadID && event.Depth == depth {
+			event.ThreadIndex == threadIndex && event.Depth == depth {
 			return &event
 		}
 	}

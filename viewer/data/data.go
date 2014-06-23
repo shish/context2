@@ -24,6 +24,7 @@ type Data struct {
 	Bookmarks *gtk.ListStore
 	Summary   []int
 	Threads   []string
+	VisibleThreadIDs []int
 	LogStart  float64
 	LogEnd    float64
 }
@@ -132,6 +133,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	s := renderStart
 	e := renderStart + renderLen
 	self.Data = []event.Event{} // free memory
+	self.VisibleThreadIDs = []int{}
 	threadLevelEnds := make([][]event.Event, len(self.Threads))
 
 	/*
@@ -158,7 +160,18 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var evt event.Event
 		evt.NewEvent(query)
-		evt.ThreadIndex = evt.ThreadID // TODO: index into currently-active Threads, not all Threads
+
+		evt.ThreadIndex = -1
+		i := 0
+		for ; i<len(self.VisibleThreadIDs); i++ {
+			if self.VisibleThreadIDs[i] == evt.ThreadID {
+				evt.ThreadIndex = i
+			}
+		}
+		if evt.ThreadIndex == -1 {
+			self.VisibleThreadIDs = append(self.VisibleThreadIDs, evt.ThreadID)
+			evt.ThreadIndex = i
+		}
 
 		if evt.StartType == "START" {
 			var prevEventAtLevel *event.Event
