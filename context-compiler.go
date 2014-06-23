@@ -11,8 +11,8 @@ import (
 	//"runtime/pprof"
 	"github.com/mxk/go-sqlite/sqlite3"
 	//ctx "github.com/shish/context-apis/go/context"
-	"./compiler"
 	"./common"
+	"./compiler"
 )
 
 type Thread struct {

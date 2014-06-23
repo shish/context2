@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 	// gtk
-	"github.com/conformal/gotk3/gtk"
 	"./viewer/gui"
+	"github.com/conformal/gotk3/gtk"
 )
 
 func main() {

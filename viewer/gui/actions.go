@@ -1,8 +1,8 @@
 package gui
 
 import (
-	"fmt"
 	"../event"
+	"fmt"
 )
 
 /**********************************************************************
@@ -64,8 +64,12 @@ func (self *ContextViewer) SetScale(scale float64) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
 
-	if scale < MIN_PPS { scale = MIN_PPS }
-	if scale > MAX_PPS { scale = MAX_PPS }
+	if scale < MIN_PPS {
+		scale = MIN_PPS
+	}
+	if scale > MAX_PPS {
+		scale = MAX_PPS
+	}
 
 	self.controls.scale.SetValue(scale)
 	self.config.Render.Scale = scale
@@ -76,8 +80,12 @@ func (self *ContextViewer) SetDepth(depth int) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
 
-	if depth < 1 { depth = 1 }
-	if depth > 20 { depth = 20 }
+	if depth < 1 {
+		depth = 1
+	}
+	if depth > 20 {
+		depth = 20
+	}
 
 	self.controls.depth.SetValue(float64(depth))
 	self.config.Render.Depth = depth
@@ -104,13 +112,13 @@ func (self *ContextViewer) redraw() {
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
-	if (y < HEADER_HEIGHT ||
-	    y > float64(HEADER_HEIGHT + (BLOCK_HEIGHT * self.config.Render.Depth) * len(self.data.Threads))) {
+	if y < HEADER_HEIGHT ||
+		y > float64(HEADER_HEIGHT+(BLOCK_HEIGHT*self.config.Render.Depth)*len(self.data.Threads)) {
 		return nil
 	}
 
 	yRel := y - float64(HEADER_HEIGHT)
-	threadID := int(yRel / float64(BLOCK_HEIGHT * self.config.Render.Depth))
+	threadID := int(yRel / float64(BLOCK_HEIGHT*self.config.Render.Depth))
 	depth := (int(yRel) % (BLOCK_HEIGHT * self.config.Render.Depth)) / BLOCK_HEIGHT
 
 	width := self.config.Render.Scale * self.config.Render.Length
@@ -122,8 +130,8 @@ func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
 	// binary search for first event with startTime > mousePos,
 	// then iterate backwards skipping over unrelated threads?
 	for _, event := range self.data.Data {
-		if (event.StartTime < ts && event.EndTime > ts &&
-		event.ThreadID == threadID && event.Depth == depth) {
+		if event.StartTime < ts && event.EndTime > ts &&
+			event.ThreadID == threadID && event.Depth == depth {
 			return &event
 		}
 	}

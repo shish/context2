@@ -1,10 +1,13 @@
 package data
 
 import (
+	"../../common"
+	"../config"
+	"../event"
 	"bufio"
-	"github.com/mxk/go-sqlite/sqlite3"
 	"fmt"
 	"github.com/conformal/gotk3/gtk"
+	"github.com/mxk/go-sqlite/sqlite3"
 	"log"
 	"os"
 	"os/exec"
@@ -12,9 +15,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"../../common"
-	"../config"
-	"../event"
 )
 
 type Data struct {
@@ -158,7 +158,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var evt event.Event
 		evt.NewEvent(query)
-		evt.ThreadIndex := evt.ThreadID // TODO: index into currently-active Threads, not all Threads
+		evt.ThreadIndex = evt.ThreadID // TODO: index into currently-active Threads, not all Threads
 
 		if evt.StartType == "START" {
 			var prevEventAtLevel *event.Event
@@ -201,7 +201,7 @@ func (self *Data) LoadBookmarks() {
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
-		if n % 1000 == 0 {
+		if n%1000 == 0 {
 			log.Printf("Loaded %d bookmarks\n", n)
 		}
 		n++

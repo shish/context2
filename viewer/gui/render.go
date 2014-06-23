@@ -2,12 +2,12 @@ package gui
 
 import (
 	"fmt"
-	"math"
 	"log"
+	"math"
 	// gtk
-	"github.com/conformal/gotk3/cairo"
 	"../../common"
 	"../event"
+	"github.com/conformal/gotk3/cairo"
 )
 
 /**********************************************************************
@@ -204,25 +204,25 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 	cr.SelectFontFace("sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 	cr.SetFontSize(10)
 
-	start_px := math.Max(0, (evt.StartTime - offset_time) * scale_factor)
+	start_px := math.Max(0, (evt.StartTime-offset_time)*scale_factor)
 	length_px := 200.0 // evt.Length() * scale_factor
 	depth_px := float64(HEADER_HEIGHT + (evt.ThreadIndex * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	cr.SetSourceRGB(1.0, 1.0, 0.65)
-	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5+BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
 	cr.Fill()
 
 	cr.SetSourceRGB(0.65, 0.65, 0.5)
-	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5+BLOCK_HEIGHT, math.Floor(length_px), BLOCK_HEIGHT*2)
 	cr.Stroke()
 
 	cr.Save()
-	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5 + BLOCK_HEIGHT, math.Max(0, math.Floor(length_px)-5), BLOCK_HEIGHT*2)
+	cr.Rectangle(math.Floor(start_px)+0.5, depth_px+0.5+BLOCK_HEIGHT, math.Max(0, math.Floor(length_px)-5), BLOCK_HEIGHT*2)
 	cr.Clip()
 	cr.SetSourceRGB(0.2, 0.2, 0.2)
-	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70 + BLOCK_HEIGHT)
+	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70+BLOCK_HEIGHT)
 	cr.ShowText(evt.Tip(offset_time))
-	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70 + BLOCK_HEIGHT*2)
+	cr.MoveTo(start_px+5, depth_px+BLOCK_HEIGHT*0.70+BLOCK_HEIGHT*2)
 	cr.ShowText(evt.Text())
 	cr.Restore()
 }

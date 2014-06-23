@@ -1,8 +1,8 @@
 package event
 
 import (
-	"github.com/mxk/go-sqlite/sqlite3"
 	"fmt"
+	"github.com/mxk/go-sqlite/sqlite3"
 )
 
 /*
@@ -11,19 +11,19 @@ import (
    #########################################################################
 */
 type Event struct {
-	id             int
-	ThreadID       int  // index into the list of all threads
-	ThreadIndex int  // index into the list of currently visible threads
+	id            int
+	ThreadID      int // index into the list of all threads
+	ThreadIndex   int // index into the list of currently visible threads
 	startLocation string
 	endLocation   string
-	StartTime      float64
-	EndTime        float64
-	StartType      string
-	EndType        string
+	StartTime     float64
+	EndTime       float64
+	StartType     string
+	EndType       string
 	startText     string
 	endText       string
-	count          int
-	Depth          int
+	count         int
+	Depth         int
 }
 
 func (self *Event) NewEvent(query *sqlite3.Stmt) {
@@ -71,9 +71,9 @@ func (self *Event) Text() string {
 
 func (self *Event) Tip(offsetTime float64) string {
 	return fmt.Sprintf("%.0fms @%.0fms: %s",
-		   (self.EndTime - self.StartTime) * 1000,
-		   (self.StartTime - offsetTime) * 1000,
-		   self.startLocation)
+		(self.EndTime-self.StartTime)*1000,
+		(self.StartTime-offsetTime)*1000,
+		self.startLocation)
 }
 
 func (self *Event) Length() float64 {

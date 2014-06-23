@@ -4,15 +4,16 @@ import (
 	"log"
 	"os/user"
 	"path/filepath"
+	// local
+	"../../common"
+	"../config"
+	"../data"
+	"../event"
 	// gtk
 	"github.com/conformal/gotk3/cairo"
 	"github.com/conformal/gotk3/gdk"
 	"github.com/conformal/gotk3/glib"
 	"github.com/conformal/gotk3/gtk"
-	"../../common"
-	"../config"
-	"../data"
-	"../event"
 )
 
 /**********************************************************************
@@ -25,7 +26,7 @@ type Geometry struct {
 }
 
 type ContextViewer struct {
-	name          string
+	name string
 	// GUI
 	master        *gtk.Window
 	canvasScroll  *gtk.ScrolledWindow
@@ -38,7 +39,7 @@ type ContextViewer struct {
 	config        config.Config
 
 	// data
-	data data.Data
+	data        data.Data
 	activeEvent *event.Event
 
 	controls struct {
@@ -140,15 +141,15 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
 		openButton.Connect("activate", func() {
 			/*
-				// TODO: filter by extension in file open dialog box
-			   filetypes=[
-				   ("All Supported Types", "*.ctxt *.cbin"),
-				   ("Context Text", "*.ctxt"),
-				   ("Context Binary", "*.cbin")
-			   ],
-			   initialdir=self._last_log_dir
+					// TODO: filter by extension in file open dialog box
+				   filetypes=[
+					   ("All Supported Types", "*.ctxt *.cbin"),
+					   ("Context Text", "*.ctxt"),
+					   ("Context Binary", "*.cbin")
+				   ],
+				   initialdir=self._last_log_dir
 			*/
-			dialog, _:= gtk.FileChooserDialogNew2(
+			dialog, _ := gtk.FileChooserDialogNew2(
 				"Open File", self.master, gtk.FILE_CHOOSER_ACTION_OPEN,
 				"Cancel", gtk.RESPONSE_CANCEL,
 				"Open", gtk.RESPONSE_ACCEPT)
@@ -263,7 +264,9 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 			abt, _ := gtk.AboutDialogNew()
 
 			logo, err := gdk.PixbufNewFromFileAtScale("data/context-name.svg", 300, 200, true)
-			if err == nil { abt.SetLogo(logo) }
+			if err == nil {
+				abt.SetLogo(logo)
+			}
 
 			abt.SetProgramName(self.name)
 			abt.SetVersion(common.VERSION)
@@ -274,7 +277,9 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 			//abt.SetAuthors([]string{"Shish <webmaster@shishnet.org>"})
 
 			icon, err := gdk.PixbufNewFromFile("data/tools-icon.svg")
-			if err == nil { abt.SetIcon(icon) }
+			if err == nil {
+				abt.SetIcon(icon)
+			}
 
 			abt.Run()
 			abt.Destroy()
@@ -503,7 +508,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 	canvas.SetHExpand(true)
 	canvas.SetVExpand(true)
 	canvas.AddEvents(
-			gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
+		gdk.BUTTON_PRESS_MASK | gdk.BUTTON_RELEASE_MASK |
 			/*gdk.SCROLL_MASK |*/ gdk.POINTER_MOTION_MASK)
 	canvas.Connect("draw", func(widget *gtk.DrawingArea, cr *cairo.Context) {
 		width := int(self.config.Render.Scale * self.config.Render.Length)
@@ -521,7 +526,7 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		evt := self.getEventAt(x, y)
 		if !event.CmpEvent(evt, self.activeEvent) {
 			self.activeEvent = evt
-			self.canvas.QueueDraw()  // don't do a full redraw
+			self.canvas.QueueDraw() // don't do a full redraw
 		}
 	})
 	canvas.Connect("button-press-event", func(widget *gtk.DrawingArea, evt *gdk.Event) {
@@ -532,10 +537,10 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		if event != nil {
 			padding := 10.0
 
-			pps := (float64(canvasScroll.GetAllocatedWidth())-(padding*2)) / event.Length()
+			pps := (float64(canvasScroll.GetAllocatedWidth()) - (padding * 2)) / event.Length()
 			self.SetScale(pps)
 
-			startPos := (event.StartTime - self.config.Render.Start) * self.config.Render.Scale - padding
+			startPos := (event.StartTime-self.config.Render.Start)*self.config.Render.Scale - padding
 
 			adj := canvasScroll.GetHAdjustment()
 			adj.SetValue(startPos)
@@ -549,13 +554,13 @@ func (self *ContextViewer) buildCanvas() *gtk.Grid {
 		log.Println("Grid scroll", x, y)
 		// TODO: mouse wheel zoom?
 		/*
-		   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
-		   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
+			   canvas.bind("<4>", lambda e: self.scale_view(e, 1.0 * 1.1))
+			   canvas.bind("<5>", lambda e: self.scale_view(e, 1.0 / 1.1))
 
-		   # in windows, mouse wheel events always go to the root window o_O
-		   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
-			   e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
-		   ))
+			   # in windows, mouse wheel events always go to the root window o_O
+			   self.master.bind("<MouseWheel>", lambda e: self.scale_view(
+				   e, ((1.0 * 1.1) if e.delta > 0 else (1.0 / 1.1))
+			   ))
 		*/
 	})
 
@@ -627,10 +632,10 @@ func (self *ContextViewer) showError(title, text string) {
 	log.Printf("%s: %s\n", title, text)
 	dialog := gtk.MessageDialogNewWithMarkup(
 		self.master,
-        gtk.DIALOG_DESTROY_WITH_PARENT,
-        gtk.MESSAGE_ERROR,
-        gtk.BUTTONS_CLOSE,
-        text)
+		gtk.DIALOG_DESTROY_WITH_PARENT,
+		gtk.MESSAGE_ERROR,
+		gtk.BUTTONS_CLOSE,
+		text)
 	dialog.SetTitle(title)
 	dialog.Show()
 }
