@@ -18,6 +18,8 @@ type Config struct {
 	}
 	Gui struct {
 		BookmarkPanel bool
+		RenderSettings bool
+		DataSettings  bool
 		RenderAuto    bool
 		LastLogDir    string
 	}
@@ -39,6 +41,8 @@ func (self *Config) Default() {
 	self.Render.Bookmarks = false
 
 	self.Gui.BookmarkPanel = true
+	self.Gui.RenderSettings = true
+	self.Gui.DataSettings = false
 	self.Gui.RenderAuto = true
 	self.Gui.LastLogDir = usr.HomeDir
 

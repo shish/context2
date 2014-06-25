@@ -35,6 +35,8 @@ type ContextViewer struct {
 	scrubber      *gtk.DrawingArea
 	status        *gtk.Statusbar
 	bookmarkPanel *gtk.Grid
+	renderSettings *gtk.Grid
+	dataSettings *gtk.Grid
 	configFile    string
 	config        config.Config
 
@@ -117,6 +119,12 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	if !self.config.Gui.BookmarkPanel {
 		self.bookmarkPanel.Hide()
 	}
+	if !self.config.Gui.RenderSettings {
+		self.renderSettings.Hide()
+	}
+	if !self.config.Gui.DataSettings {
+		self.dataSettings.Hide()
+	}
 
 	if databaseFile != nil {
 		self.LoadFile(*databaseFile)
@@ -189,6 +197,33 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 			}
 		})
 		viewMenu.Append(showBookmarkPanelButton)
+
+		showRenderSettingsButton, _ := gtk.CheckMenuItemNewWithLabel("Show Render Settings")
+		showRenderSettingsButton.SetActive(self.config.Gui.RenderSettings)
+		showRenderSettingsButton.Connect("activate", func() {
+			self.config.Gui.BookmarkPanel = showRenderSettingsButton.GetActive()
+			if self.config.Gui.BookmarkPanel {
+				self.renderSettings.Show()
+			} else {
+				self.renderSettings.Hide()
+			}
+		})
+		viewMenu.Append(showRenderSettingsButton)
+
+		showDataSettingsButton, _ := gtk.CheckMenuItemNewWithLabel("Show Data Settings")
+		showDataSettingsButton.SetActive(self.config.Gui.DataSettings)
+		showDataSettingsButton.Connect("activate", func() {
+			self.config.Gui.BookmarkPanel = showDataSettingsButton.GetActive()
+			if self.config.Gui.BookmarkPanel {
+				self.dataSettings.Show()
+			} else {
+				self.dataSettings.Hide()
+			}
+		})
+		viewMenu.Append(showDataSettingsButton)
+
+		sep1, _ := gtk.SeparatorMenuItemNew()
+		viewMenu.Append(sep1)
 
 		showBookmarksButton, _ := gtk.CheckMenuItemNewWithLabel("Render Bookmarks")
 		showBookmarksButton.SetActive(self.config.Render.Bookmarks)
@@ -325,11 +360,11 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 }
 
 func (self *ContextViewer) buildControlBox() *gtk.Grid {
-	gridTop, _ := gtk.GridNew()
-	gridTop.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	renderSettings, _ := gtk.GridNew()
+	renderSettings.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 
 	l, _ := gtk.LabelNew(" Start ")
-	gridTop.Add(l)
+	renderSettings.Add(l)
 
 	// TODO: display as date, or offset, rather than unix timestamp?
 	start, _ := gtk.SpinButtonNewWithRange(0, 0, 0.1)
@@ -340,11 +375,11 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 			self.Update()
 		}
 	})
-	gridTop.Add(start)
+	renderSettings.Add(start)
 	self.controls.start = start
 
 	l, _ = gtk.LabelNew("  Seconds ")
-	gridTop.Add(l)
+	renderSettings.Add(l)
 
 	length, _ := gtk.SpinButtonNewWithRange(MIN_SEC, MAX_SEC, 1.0)
 	length.SetValue(self.config.Render.Length)
@@ -355,11 +390,11 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 			self.Update()
 		}
 	})
-	gridTop.Add(length)
+	renderSettings.Add(length)
 	self.controls.length = length
 
 	l, _ = gtk.LabelNew("  Pixels Per Second ")
-	gridTop.Add(l)
+	renderSettings.Add(l)
 
 	scale, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 10.0)
 	scale.SetValue(self.config.Render.Scale)
@@ -370,11 +405,11 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 			self.redraw()
 		}
 	})
-	gridTop.Add(scale)
+	renderSettings.Add(scale)
 	self.controls.scale = scale
 
 	l, _ = gtk.LabelNew("  Depth ")
-	gridTop.Add(l)
+	renderSettings.Add(l)
 
 	depth, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 1.0)
 	depth.SetValue(float64(self.config.Render.Depth))
@@ -385,15 +420,15 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 			self.redraw()
 		}
 	})
-	gridTop.Add(depth)
+	renderSettings.Add(depth)
 	self.controls.depth = depth
 
 	//-----------------------------------------------------------------
-	gridBot, _ := gtk.GridNew()
-	gridBot.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
+	dataSettings, _ := gtk.GridNew()
+	dataSettings.SetOrientation(gtk.ORIENTATION_HORIZONTAL)
 
 	l, _ = gtk.LabelNew(" Cutoff ")
-	gridBot.Add(l)
+	dataSettings.Add(l)
 
 	cutoff, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
 	cutoff.SetValue(self.config.Render.Cutoff)
@@ -402,10 +437,10 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 		self.config.Render.Cutoff = sb.GetValue()
 		self.Update()
 	})
-	gridBot.Add(cutoff)
+	dataSettings.Add(cutoff)
 
 	l, _ = gtk.LabelNew("  Coalesce ")
-	gridBot.Add(l)
+	dataSettings.Add(l)
 
 	coalesce, _ := gtk.SpinButtonNewWithRange(0, 1, 0.001)
 	coalesce.SetValue(self.config.Render.Coalesce)
@@ -414,20 +449,26 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 		self.config.Render.Coalesce = sb.GetValue()
 		self.Update()
 	})
-	gridBot.Add(coalesce)
+	dataSettings.Add(coalesce)
 
+	/*
 	renderButton, _ := gtk.ButtonNewWithLabel("Render!")
 	renderButton.Connect("clicked", func(sb *gtk.Button) {
 		self.Update()
 	})
-	gridBot.Add(renderButton)
+	dataSettings.Add(renderButton)
+	*/
 
 	//-----------------------------------------------------------------
 
+	self.renderSettings = renderSettings
+	self.dataSettings = dataSettings
+
 	grid, _ := gtk.GridNew()
 	grid.SetOrientation(gtk.ORIENTATION_VERTICAL)
-	grid.Add(gridTop)
-	//grid.Add(gridBot)
+	grid.Add(renderSettings)
+	grid.Add(dataSettings)
+
 	return grid
 }
 
