@@ -134,7 +134,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	e := renderStart + renderLen
 	self.Data = []event.Event{} // free memory
 	self.VisibleThreadIDs = []int{}
-	threadLevelEnds := make([][]event.Event, len(self.Threads))
+	threadStacks := make([][]int, len(self.Threads))
 
 	/*
 			n = 0
@@ -159,8 +159,11 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 	`
 	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var evt event.Event
+
+		// load the basic 1:1 data
 		evt.NewEvent(query)
 
+		// calculate thread Index
 		evt.ThreadIndex = -1
 		i := 0
 		for ; i<len(self.VisibleThreadIDs); i++ {
@@ -173,26 +176,29 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 			evt.ThreadIndex = i
 		}
 
+		// load data, coalescing if appropriate
 		if evt.StartType == "START" {
-			var prevEventAtLevel *event.Event
+			prevEventAtLevel := -1
+
 			for {
-				endIdx := len(threadLevelEnds[evt.ThreadIndex]) - 1
-				if endIdx < 0 || threadLevelEnds[evt.ThreadIndex][endIdx].EndTime > evt.StartTime {
+				endIdx := len(threadStacks[evt.ThreadIndex]) - 1
+				if endIdx < 0 || self.Data[threadStacks[evt.ThreadIndex][endIdx]].EndTime > evt.StartTime {
 					break
 				}
-				prevEventAtLevel = &threadLevelEnds[evt.ThreadIndex][endIdx]
-				threadLevelEnds[evt.ThreadIndex] = threadLevelEnds[evt.ThreadIndex][:endIdx]
+				prevEventAtLevel = threadStacks[evt.ThreadIndex][endIdx]
+				threadStacks[evt.ThreadIndex] = threadStacks[evt.ThreadIndex][:endIdx]
 			}
-			evt.Depth = len(threadLevelEnds[evt.ThreadIndex])
+			evt.Depth = len(threadStacks[evt.ThreadIndex])
 
 			if coalesce > 0.0 &&
-				prevEventAtLevel != nil &&
-				prevEventAtLevel.CanMerge(evt, coalesce) {
-				prevEventAtLevel.Merge(evt)
-				//log.Printf("%.2f %.2f\n", prevEventAtLevel.StartTime, prevEventAtLevel.EndTime)
-				threadLevelEnds[evt.ThreadIndex] = append(threadLevelEnds[evt.ThreadIndex], *prevEventAtLevel)
+				prevEventAtLevel != -1 &&
+				self.Data[prevEventAtLevel].CanMerge(evt, coalesce) {
+				// previous event is still most recent at this stack level, put it back
+				threadStacks[evt.ThreadIndex] = append(threadStacks[evt.ThreadIndex], prevEventAtLevel)
+				self.Data[prevEventAtLevel].Merge(evt)
 			} else {
-				threadLevelEnds[evt.ThreadIndex] = append(threadLevelEnds[evt.ThreadIndex], evt)
+				// a new event is added to the stack
+				threadStacks[evt.ThreadIndex] = append(threadStacks[evt.ThreadIndex], len(self.Data))
 				self.Data = append(self.Data, evt)
 			}
 		} else {
