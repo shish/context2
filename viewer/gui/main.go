@@ -201,7 +201,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		showRenderSettingsButton, _ := gtk.CheckMenuItemNewWithLabel("Show Render Settings")
 		showRenderSettingsButton.SetActive(self.config.Gui.RenderSettings)
 		showRenderSettingsButton.Connect("activate", func() {
-			self.config.Gui.BookmarkPanel = showRenderSettingsButton.GetActive()
+			self.config.Gui.RenderSettings = showRenderSettingsButton.GetActive()
 			if self.config.Gui.BookmarkPanel {
 				self.renderSettings.Show()
 			} else {
@@ -213,7 +213,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		showDataSettingsButton, _ := gtk.CheckMenuItemNewWithLabel("Show Data Settings")
 		showDataSettingsButton.SetActive(self.config.Gui.DataSettings)
 		showDataSettingsButton.Connect("activate", func() {
-			self.config.Gui.BookmarkPanel = showDataSettingsButton.GetActive()
+			self.config.Gui.DataSettings = showDataSettingsButton.GetActive()
 			if self.config.Gui.BookmarkPanel {
 				self.dataSettings.Show()
 			} else {
