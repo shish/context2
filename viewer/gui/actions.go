@@ -3,6 +3,7 @@ package gui
 import (
 	"../event"
 	"fmt"
+	"github.com/conformal/gotk3/gtk"
 )
 
 /**********************************************************************
@@ -33,13 +34,30 @@ func (self *ContextViewer) SetStart(ts float64) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
 
-	// TODO: highlight the first bookmark which is before or equal to RenderStart
 	if ts >= self.data.LogStart && ts <= self.data.LogEnd {
 		// If we go over the end of the log, step back a bit.
 		// Actually, that breaks "the bookmark is at the left edge of the screen"
 		//if ts + self.config.Render.Length > self.data.LogEnd {
 		//	ts = self.data.LogEnd - self.config.Render.Len
 		//}
+
+		itemNum := -1
+		for iter, valid := self.data.Bookmarks.GetIterFirst(); valid; valid = self.data.Bookmarks.IterNext(iter) {
+			gTimestamp, _ := self.data.Bookmarks.GetValue(iter, 0)
+			timestamp, _ := gTimestamp.GoValue()
+
+			if timestamp.(float64) >= ts {
+				break
+			}
+
+			itemNum++
+		}
+		if itemNum < 0 {
+			itemNum = 0
+		}
+		selection, _ := self.controls.bookmarks.GetSelection()
+		path, _ := gtk.TreePathNewFromString(fmt.Sprintf("%d", itemNum))
+		selection.SelectPath(path)
 
 		self.controls.start.SetValue(ts)
 		self.config.Render.Start = ts

@@ -46,6 +46,7 @@ type ContextViewer struct {
 
 	controls struct {
 		active bool
+		bookmarks *gtk.TreeView
 		start  *gtk.SpinButton
 		length *gtk.SpinButton
 		scale  *gtk.SpinButton
@@ -495,6 +496,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		self.Update()
 	})
 	bookmarkScrollPane.Add(bookmarkView)
+	self.controls.bookmarks = bookmarkView
 	grid.Attach(bookmarkScrollPane, 0, 0, 5, 1)
 
 	renderer, _ := gtk.CellRendererTextNew()
