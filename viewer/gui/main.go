@@ -480,7 +480,6 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	// http://www.mono-project.com/GtkSharp_TreeView_Tutorial
 	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
-	// TODO: have SetStart affect this
 	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
 	bookmarkScrollPane.SetSizeRequest(250, 200)
 	bookmarkScrollPane.SetHExpand(true)
