@@ -149,19 +149,27 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
 		openButton.Connect("activate", func() {
-			/*
-					// TODO: filter by extension in file open dialog box
-				   filetypes=[
-					   ("All Supported Types", "*.ctxt *.cbin"),
-					   ("Context Text", "*.ctxt"),
-					   ("Context Binary", "*.cbin")
-				   ],
-				   initialdir=self._last_log_dir
-			*/
 			dialog, _ := gtk.FileChooserDialogNew2(
 				"Open File", self.master, gtk.FILE_CHOOSER_ACTION_OPEN,
 				"Cancel", gtk.RESPONSE_CANCEL,
 				"Open", gtk.RESPONSE_ACCEPT)
+
+			filter, _ := gtk.FileFilterNew()
+			filter.SetName("All Context Files")
+			filter.AddPattern("*.ctxt")
+			filter.AddPattern("*.cbin")
+			dialog.AddFilter(filter)
+
+			filter, _ = gtk.FileFilterNew()
+			filter.SetName("Context Texts")
+			filter.AddPattern("*.ctxt")
+			dialog.AddFilter(filter)
+
+			filter, _ = gtk.FileFilterNew()
+			filter.SetName("Context Binaries")
+			filter.AddPattern("*.cbin")
+			dialog.AddFilter(filter)
+
 			if (gtk.ResponseType)(dialog.Run()) == gtk.RESPONSE_ACCEPT {
 				filename := dialog.GetFilename()
 				self.config.Gui.LastLogDir = filepath.Dir(filename)
