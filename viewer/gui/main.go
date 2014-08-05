@@ -4,6 +4,7 @@ import (
 	"log"
 	"os/user"
 	"path/filepath"
+	//"strings"
 	// local
 	"../../common"
 	"../config"
@@ -484,8 +485,6 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
-	// TODO: bookmark filter / search?
-	// http://www.mono-project.com/GtkSharp_TreeView_Tutorial
 	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
 	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
@@ -504,11 +503,44 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	})
 	bookmarkScrollPane.Add(bookmarkView)
 	self.controls.bookmarks = bookmarkView
-	grid.Attach(bookmarkScrollPane, 0, 0, 5, 1)
+	grid.Attach(bookmarkScrollPane, 0, 1, 5, 1)
 
 	renderer, _ := gtk.CellRendererTextNew()
 	column, _ := gtk.TreeViewColumnNewWithAttribute("Bookmarks", renderer, "text", 1)
 	bookmarkView.AppendColumn(column)
+
+	// TODO: bookmark filter / search?
+	// http://www.mono-project.com/GtkSharp_TreeView_Tutorial
+	if false {
+		bookmarkSearch, _ := gtk.EntryNew()
+		grid.Attach(bookmarkSearch, 0, 0, 5, 1)
+
+		/*
+		filter, _ := gtk.TreeModelFilterNew(self.data.Bookmarks, nil)
+
+		bookmarkSearch.Connect("changed", func() {
+			filterText, _ := bookmarkSearch.GetText()
+			log.Printf("Bookmark filter changed: %s\n", filterText)
+			filter.Refilter()
+		})
+
+		FilterTree := func(model *gtk.TreeModel, iter *gtk.TreeIter) bool {
+			artistNameVal, _ := model.GetValue(iter, 0)
+			artistNameGo, _ := artistNameVal.GoValue()
+			artistName := artistNameGo.(string)
+
+			text, _ := bookmarkSearch.GetText()
+			if text == "" {
+				return true
+			}
+
+			return strings.Contains(artistName, text)
+		}
+
+		filter.VisibleFunc = gtk.TreeModelFilterVisibleFunc(FilterTree)
+		bookmarkView.SetModel(filter)
+		*/
+	}
 
 	l, _ := gtk.ButtonNewWithLabel("<<")
 	l.Connect("clicked", func() {
@@ -516,7 +548,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		self.SetStart(self.data.LogStart)
 		self.Update()
 	})
-	grid.Attach(l, 0, 1, 1, 1)
+	grid.Attach(l, 0, 2, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel("<")
 	l.Connect("clicked", func() {
@@ -524,7 +556,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		self.SetStart(self.data.GetLatestBookmarkBefore(self.config.Render.Start))
 		self.Update()
 	})
-	grid.Attach(l, 1, 1, 1, 1)
+	grid.Attach(l, 1, 2, 1, 1)
 
 	//l, _ = gtk.ButtonNewWithLabel(" ")
 	//grid.Attach(l, 2, 1, 1, 1)
@@ -535,7 +567,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		self.SetStart(self.data.GetEarliestBookmarkAfter(self.config.Render.Start))
 		self.Update()
 	})
-	grid.Attach(l, 3, 1, 1, 1)
+	grid.Attach(l, 3, 2, 1, 1)
 
 	l, _ = gtk.ButtonNewWithLabel(">>")
 	l.Connect("clicked", func() {
@@ -543,7 +575,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		self.SetStart(self.data.LogEnd - self.config.Render.Length)
 		self.Update()
 	})
-	grid.Attach(l, 4, 1, 1, 1)
+	grid.Attach(l, 4, 2, 1, 1)
 
 	return grid
 }
