@@ -120,18 +120,6 @@ func compileLog(logFile string, databaseFile string) {
 	var summary []int = make([]int, 1000)
 	thread_name_to_id := make(map[string]int)
 	thread_count := 0
-	/*
-		    query, _ := db.Query("SELECT node, process, thread FROM threads ORDER BY id")
-			for {
-				err := query.Next()
-				if err == io.EOF {
-					break
-				}
-				var node, process, thread string
-				query.Scan(node, process, thread)
-				//thread_names = append(thread_names, )
-			}
-	*/
 
 	sqlInsertBookmark, _ := db.Prepare(`
         INSERT INTO events(thread_id, start_location, start_time, start_type, start_text, end_time)
