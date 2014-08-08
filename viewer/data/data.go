@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/conformal/gotk3/gtk"
 	"github.com/mxk/go-sqlite/sqlite3"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +26,7 @@ type Data struct {
 	VisibleThreadIDs []int
 	LogStart  float64
 	LogEnd    float64
+	setStatusCB func(string)
 }
 
 func splitExt(path string) (root, ext string) {
@@ -36,7 +36,7 @@ func splitExt(path string) (root, ext string) {
 }
 
 func VersionCheck(databaseFile string) bool {
-	log.Println("Checking database version")
+	//self.setStatus("Checking database version")
 	db, _ := sqlite3.Open(databaseFile)
 	defer db.Close()
 
@@ -60,8 +60,18 @@ func VersionCheck(databaseFile string) bool {
 	return true
 }
 
-func (self *Data) LoadFile(givenFile string, setStatus func(string), config config.Config) (string, error) {
-	log.Println("Loading: file", givenFile)
+func (self *Data) SetStatusCB(setStatus func(string)) {
+	self.setStatusCB = setStatus
+}
+
+func (self *Data) setStatus(status string) {
+	if self.setStatusCB != nil {
+		self.setStatusCB(status)
+	}
+}
+
+func (self *Data) LoadFile(givenFile string, config config.Config) (string, error) {
+	self.setStatus(fmt.Sprintf("Loading: file %s", givenFile))
 
 	self.config = config
 
@@ -83,17 +93,17 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string), config conf
 
 		if err != nil {
 			needsRecompile = true
-			setStatus("Compiled log not found, compiling")
+			self.setStatus("Compiled log not found, compiling")
 		} else if logStat.ModTime().UnixNano() > databaseStat.ModTime().UnixNano() {
 			needsRecompile = true
-			setStatus("Compiled log is out of date, recompiling")
+			self.setStatus("Compiled log is out of date, recompiling")
 		} else if !VersionCheck(databaseFile) {
 			needsRecompile = true
-			setStatus("Compiled log is from an old version of context, recompiling")
+			self.setStatus("Compiled log is from an old version of context, recompiling")
 		}
 
 		if needsRecompile {
-			log.Println("Recompiling")
+			self.setStatus("Recompiling")
 			compiler := exec.Command("context-compiler", logFile)
 			pipe, _ := compiler.StdoutPipe()
 			reader := bufio.NewScanner(pipe)
@@ -102,7 +112,7 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string), config conf
 			for reader.Scan() {
 				line := reader.Text()
 				if line != "" {
-					setStatus(strings.Trim(line, "\n\r"))
+					self.setStatus(strings.Trim(line, "\n\r"))
 				} else {
 					break
 				}
@@ -125,11 +135,11 @@ func (self *Data) LoadFile(givenFile string, setStatus func(string), config conf
 	return databaseFile, nil
 }
 
-func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, setStatus func(string)) {
-	log.Println("Loading: events")
+func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
+	self.setStatus("Loading: events")
 
-	setStatus("Loading...")
-	defer setStatus("")
+	self.setStatus("Loading...")
+	defer self.setStatus("")
 	s := renderStart
 	e := renderStart + renderLen
 	self.Data = []event.Event{} // free memory
@@ -206,14 +216,14 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64, s
 		}
 	}
 
-	setStatus("Sorting events")
+	self.setStatus("Sorting events")
 	sort.Sort(event.ByType(self.Data))
 
-	log.Println("Loading: done")
+	self.setStatus("Loading: done")
 }
 
 func (self *Data) LoadBookmarks() {
-	log.Println("Loading: bookmarks")
+	self.setStatus("Loading: bookmarks")
 
 	n := 0
 	self.Bookmarks.Clear()
@@ -221,7 +231,7 @@ func (self *Data) LoadBookmarks() {
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
 		if n%1000 == 0 {
-			log.Printf("Loaded %d bookmarks\n", n)
+			self.setStatus(fmt.Sprintf("Loaded %d bookmarks", n))
 		}
 		n++
 		var startTime float64
@@ -244,7 +254,7 @@ func (self *Data) LoadBookmarks() {
 }
 
 func (self *Data) LoadSettings() {
-	log.Println("Loading: settings")
+	self.setStatus("Loading: settings")
 
 	sql := "SELECT start_time, end_time FROM settings"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
@@ -253,7 +263,7 @@ func (self *Data) LoadSettings() {
 }
 
 func (self *Data) LoadThreads() {
-	log.Println("Loading: threads")
+	self.setStatus("Loading: threads")
 
 	self.Threads = make([]string, 0, 10)
 
@@ -266,7 +276,7 @@ func (self *Data) LoadThreads() {
 }
 
 func (self *Data) LoadSummary() {
-	log.Println("Loading: summary")
+	self.setStatus("Loading: summary")
 
 	self.Summary = make([]int, 0, 1000)
 
