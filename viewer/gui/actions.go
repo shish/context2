@@ -123,15 +123,15 @@ func (self *ContextViewer) Update() {
 			self.config.Render.Start, self.config.Render.Length,
 			self.config.Render.Coalesce, self.config.Render.Cutoff,
 			)
-		self.redraw()
+		glib.IdleAdd(func() {
+			self.redraw()
+		})
 	}()
 }
 
 func (self *ContextViewer) redraw() {
 	self.buffer = nil
-	glib.IdleAdd(func() {
-		self.canvas.QueueDraw()
-	})
+	self.canvas.QueueDraw()
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
