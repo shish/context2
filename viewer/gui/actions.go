@@ -4,6 +4,7 @@ import (
 	"../event"
 	"fmt"
 	"github.com/conformal/gotk3/gtk"
+	"github.com/conformal/gotk3/glib"
 )
 
 /**********************************************************************
@@ -111,6 +112,7 @@ func (self *ContextViewer) SetDepth(depth int) {
 	//self.redraw()
 }
 
+// Load new event data based on render settings
 func (self *ContextViewer) Update() {
 	// free old data
 	self.data.Data = []event.Event{}
@@ -127,7 +129,9 @@ func (self *ContextViewer) Update() {
 
 func (self *ContextViewer) redraw() {
 	self.buffer = nil
-	self.canvas.QueueDraw()
+	glib.IdleAdd(func() {
+		self.canvas.QueueDraw()
+	})
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
