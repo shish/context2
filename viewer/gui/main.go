@@ -128,8 +128,13 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 		self.dataSettings.Hide()
 	}
 
+	self.data.SetStatusCB(self.setStatus)
 	if databaseFile != nil {
-		self.LoadFile(*databaseFile)
+		// go away and draw the GUI we've built so far before
+		// coming back and actually loading the file
+		glib.IdleAdd(func() {
+			self.LoadFile(*databaseFile)
+		})
 	}
 }
 
@@ -706,8 +711,12 @@ func (self *ContextViewer) setStatus(text string) {
 	if text != "" {
 		log.Println(text)
 	}
-	self.status.Pop(0) // RemoveAll?
-	self.status.Push(0, text)
+	glib.IdleAdd(func() {
+		self.status.Pop(0) // RemoveAll?
+		if text != "" {
+			self.status.Push(0, text)
+		}
+	})
 }
 
 func (self *ContextViewer) showError(title, text string) {

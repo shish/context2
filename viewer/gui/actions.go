@@ -11,7 +11,8 @@ import (
 **********************************************************************/
 
 func (self *ContextViewer) LoadFile(givenFile string) {
-	databaseFile, err := self.data.LoadFile(givenFile, self.setStatus, self.config)
+	// open .cbin file, instant if cbin is ready, slow if .ctxt needs compiling
+	databaseFile, err := self.data.LoadFile(givenFile, self.config)
 	if err != nil {
 		self.showError("Error", fmt.Sprintf("Error loading '%s':\n%s", givenFile, err))
 		return
@@ -115,11 +116,11 @@ func (self *ContextViewer) Update() {
 	self.data.Data = []event.Event{}
 	self.redraw()
 
-	/*go*/ func() {
+	go func() {
 		self.data.LoadEvents(
 			self.config.Render.Start, self.config.Render.Length,
 			self.config.Render.Coalesce, self.config.Render.Cutoff,
-			self.setStatus)
+			)
 		self.redraw()
 	}()
 }
