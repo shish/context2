@@ -135,8 +135,10 @@ func (self *ContextViewer) redraw() {
 }
 
 func (self *ContextViewer) getEventAt(x, y float64) *event.Event {
-	if y < HEADER_HEIGHT ||
-		y > float64(HEADER_HEIGHT+(BLOCK_HEIGHT*self.config.Render.Depth)*len(self.data.VisibleThreadIDs)) {
+	row_count := len(self.data.VisibleThreadIDs)
+	row_depth := BLOCK_HEIGHT*self.config.Render.Depth
+	total_height := float64(HEADER_HEIGHT+row_depth*row_count)
+	if y < HEADER_HEIGHT || y > total_height {
 		return nil
 	}
 
