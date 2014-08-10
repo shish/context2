@@ -6,21 +6,19 @@ import (
 	"../event"
 	"bufio"
 	"fmt"
-	"github.com/conformal/gotk3/gtk"
 	"github.com/mxk/go-sqlite/sqlite3"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 )
 
 type Data struct {
 	conn      *sqlite3.Conn
 	config    config.Config
 	Data      []event.Event
-	Bookmarks *gtk.ListStore
+	Bookmarks []Bookmark
 	Summary   []int
 	Threads   []string
 	VisibleThreadIDs []int
@@ -70,7 +68,7 @@ func (self *Data) setStatus(status string) {
 	}
 }
 
-func (self *Data) LoadFile(givenFile string, config config.Config) (string, error) {
+func (self *Data) OpenFile(givenFile string, config config.Config) (string, error) {
 	self.setStatus(fmt.Sprintf("Loading: file %s", givenFile))
 
 	self.config = config
@@ -126,11 +124,18 @@ func (self *Data) LoadFile(givenFile string, config config.Config) (string, erro
 	}
 	self.conn, _ = sqlite3.Open(databaseFile)
 
-	self.Data = []event.Event{} // don't load the bulk of the data yet
-	self.LoadSettings()
-	self.LoadBookmarks()
-	self.LoadSummary()
-	self.LoadThreads()
+	// self.LoadEvents()
+	self.Data = []event.Event{}
+
+	// self.LoadBookmarks()
+	self.Bookmarks = []Bookmark{}
+
+	// self.LoadSettings()
+	self.LogStart = 0
+	self.LogEnd = 0
+
+	// self.LoadThreads()
+	self.Threads = make([]string, 0, 10)
 
 	return databaseFile, nil
 }
@@ -226,7 +231,7 @@ func (self *Data) LoadBookmarks() {
 	self.setStatus("Loading: bookmarks")
 
 	n := 0
-	self.Bookmarks.Clear()
+	self.Bookmarks = []Bookmark{}
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
@@ -238,18 +243,7 @@ func (self *Data) LoadBookmarks() {
 		var startText, endText string
 		query.Scan(&startTime, &startText, &endText)
 
-		var timePos float64
-		if self.config.Bookmarks.Absolute {
-			timePos = startTime
-		} else {
-			timePos = startTime - self.LogStart
-		}
-
-		timeText := time.Unix(int64(timePos), 0).Format(self.config.Bookmarks.Format)
-		text := fmt.Sprintf("%s: %s", timeText, startText)
-
-		itemPtr := self.Bookmarks.Append()
-		self.Bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{startTime, text})
+		self.Bookmarks = append(self.Bookmarks, Bookmark{startTime, startText})
 	}
 }
 
@@ -264,8 +258,6 @@ func (self *Data) LoadSettings() {
 
 func (self *Data) LoadThreads() {
 	self.setStatus("Loading: threads")
-
-	self.Threads = make([]string, 0, 10)
 
 	sql := "SELECT node, process, thread FROM threads ORDER BY id"
 	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {

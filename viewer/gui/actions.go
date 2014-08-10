@@ -13,23 +13,46 @@ import (
 
 func (self *ContextViewer) LoadFile(givenFile string) {
 	// open .cbin file, instant if cbin is ready, slow if .ctxt needs compiling
-	databaseFile, err := self.data.LoadFile(givenFile, self.config)
-	if err != nil {
-		self.showError("Error", fmt.Sprintf("Error loading '%s':\n%s", givenFile, err))
-		return
-	}
+	go func() {
+		databaseFile, err := self.data.OpenFile(givenFile, self.config)
+		if err != nil {
+			self.showError("Error", fmt.Sprintf("Error loading '%s':\n%s", givenFile, err))
+			return
+		}
 
-	// update title and scrubber, as those are ~instant
-	self.controls.active = false
-	self.master.SetTitle(self.name + ": " + databaseFile)
-	self.controls.start.SetRange(self.data.LogStart, self.data.LogEnd)
-	self.controls.active = true
-	self.scrubber.QueueDraw()
+		self.data.LoadSettings()
+		glib.IdleAdd(func() {
+			// update title and scrubber, as those are ~instant
+			self.controls.active = false
+			self.master.SetTitle(self.name + ": " + databaseFile)
+			self.controls.start.SetRange(self.data.LogStart, self.data.LogEnd)
+			self.controls.active = true
+		})
 
-	// render canvas with empty data first, then load the data
-	self.redraw()
-	self.SetStart(self.data.LogStart)
-	self.Update()
+		self.data.LoadSummary()
+		glib.IdleAdd(func() {
+			self.scrubber.QueueDraw()
+		})
+
+		self.data.LoadBookmarks()
+		glib.IdleAdd(func() {
+			self.setStatus("Rendering bookmarks")
+			// convert data.Bookmarks to self.bookmarks
+			self.bookmarks.Clear()
+			for _, bookmark := range(self.data.Bookmarks) {
+				itemPtr := self.bookmarks.Append()
+				self.bookmarks.Set(itemPtr, []int{0, 1}, []interface{}{bookmark.Time, bookmark.Text})
+			}
+		})
+
+		self.data.LoadThreads()
+		glib.IdleAdd(func() {
+			// render canvas with empty data first, then load the data
+			self.redraw()
+			self.SetStart(self.data.LogStart)
+			self.Update()
+		})
+	}()
 }
 
 func (self *ContextViewer) SetStart(ts float64) {
@@ -44,8 +67,8 @@ func (self *ContextViewer) SetStart(ts float64) {
 		//}
 
 		itemNum := -1
-		for iter, valid := self.data.Bookmarks.GetIterFirst(); valid; valid = self.data.Bookmarks.IterNext(iter) {
-			gTimestamp, _ := self.data.Bookmarks.GetValue(iter, 0)
+		for iter, valid := self.bookmarks.GetIterFirst(); valid; valid = self.bookmarks.IterNext(iter) {
+			gTimestamp, _ := self.bookmarks.GetValue(iter, 0)
 			timestamp, _ := gTimestamp.GoValue()
 
 			if timestamp.(float64) >= ts {

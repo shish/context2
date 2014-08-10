@@ -40,6 +40,7 @@ type ContextViewer struct {
 	dataSettings *gtk.Grid
 	configFile    string
 	config        config.Config
+	bookmarks *gtk.ListStore
 
 	// data
 	data        data.Data
@@ -240,7 +241,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		sep1, _ := gtk.SeparatorMenuItemNew()
 		viewMenu.Append(sep1)
 
-		showBookmarksButton, _ := gtk.CheckMenuItemNewWithLabel("Render Bookmarks")
+		showBookmarksButton, _ := gtk.CheckMenuItemNewWithLabel("Render bookmarks")
 		showBookmarksButton.SetActive(self.config.Render.Bookmarks)
 		showBookmarksButton.Connect("activate", func() {
 			self.config.Render.Bookmarks = showBookmarksButton.GetActive()
@@ -490,16 +491,16 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	grid, _ := gtk.GridNew()
 
-	self.data.Bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
+	self.bookmarks, _ = gtk.ListStoreNew(glib.TYPE_DOUBLE, glib.TYPE_STRING)
 
 	bookmarkScrollPane, _ := gtk.ScrolledWindowNew(nil, nil)
 	bookmarkScrollPane.SetSizeRequest(250, 200)
 	bookmarkScrollPane.SetHExpand(true)
-	bookmarkView, _ := gtk.TreeViewNewWithModel(self.data.Bookmarks)
+	bookmarkView, _ := gtk.TreeViewNewWithModel(self.bookmarks)
 	bookmarkView.SetVExpand(true)
 	bookmarkView.Connect("row-activated", func(bv *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
-		iter, _ := self.data.Bookmarks.GetIter(path)
-		gvalue, _ := self.data.Bookmarks.GetValue(iter, 0)
+		iter, _ := self.bookmarks.GetIter(path)
+		gvalue, _ := self.bookmarks.GetValue(iter, 0)
 		value, _ := gvalue.GoValue()
 		fvalue := value.(float64)
 		log.Printf("Nav: bookmark %.2f\n", fvalue)
@@ -511,7 +512,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 	grid.Attach(bookmarkScrollPane, 0, 1, 5, 1)
 
 	renderer, _ := gtk.CellRendererTextNew()
-	column, _ := gtk.TreeViewColumnNewWithAttribute("Bookmarks", renderer, "text", 1)
+	column, _ := gtk.TreeViewColumnNewWithAttribute("bookmarks", renderer, "text", 1)
 	bookmarkView.AppendColumn(column)
 
 	// TODO: bookmark filter / search?
@@ -521,7 +522,7 @@ func (self *ContextViewer) buildBookmarks() *gtk.Grid {
 		grid.Attach(bookmarkSearch, 0, 0, 5, 1)
 
 		/*
-		filter, _ := gtk.TreeModelFilterNew(self.data.Bookmarks, nil)
+		filter, _ := gtk.TreeModelFilterNew(self.bookmarks, nil)
 
 		bookmarkSearch.Connect("changed", func() {
 			filterText, _ := bookmarkSearch.GetText()
