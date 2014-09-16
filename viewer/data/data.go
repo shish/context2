@@ -146,8 +146,14 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 	defer self.setStatus("")
 	s := renderStart
 	e := renderStart + renderLen
-	self.Data = []event.Event{} // free memory
+
+	// free memory
+	self.Data = []event.Event{}
 	self.VisibleThreadIDs = []int{}
+
+	// private copy of new data, to avoid concurrent LoadEvents calls messing with each other
+	newData := []event.Event{}
+	newVisibleThreadIDs := []int{}
 	threadStacks := make([][]int, len(self.Threads))
 
 	/*
@@ -188,13 +194,13 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 		// calculate thread Index
 		evt.ThreadIndex = -1
 		i := 0
-		for ; i<len(self.VisibleThreadIDs); i++ {
-			if self.VisibleThreadIDs[i] == evt.ThreadID {
+		for ; i<len(newVisibleThreadIDs); i++ {
+			if newVisibleThreadIDs[i] == evt.ThreadID {
 				evt.ThreadIndex = i
 			}
 		}
 		if evt.ThreadIndex == -1 {
-			self.VisibleThreadIDs = append(self.VisibleThreadIDs, evt.ThreadID)
+			newVisibleThreadIDs = append(newVisibleThreadIDs, evt.ThreadID)
 			evt.ThreadIndex = i
 		}
 
@@ -204,7 +210,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 
 			for {
 				endIdx := len(threadStacks[evt.ThreadIndex]) - 1
-				if endIdx < 0 || self.Data[threadStacks[evt.ThreadIndex][endIdx]].EndTime > evt.StartTime {
+				if endIdx < 0 || newData[threadStacks[evt.ThreadIndex][endIdx]].EndTime > evt.StartTime {
 					break
 				}
 				prevEventAtLevel = threadStacks[evt.ThreadIndex][endIdx]
@@ -214,23 +220,26 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 
 			if coalesce > 0.0 &&
 				prevEventAtLevel != -1 &&
-				self.Data[prevEventAtLevel].CanMerge(evt, coalesce) {
+				newData[prevEventAtLevel].CanMerge(evt, coalesce) {
 				// previous event is still most recent at this stack level, put it back
 				threadStacks[evt.ThreadIndex] = append(threadStacks[evt.ThreadIndex], prevEventAtLevel)
-				self.Data[prevEventAtLevel].Merge(evt)
+				newData[prevEventAtLevel].Merge(evt)
 			} else {
 				// a new event is added to the stack
-				threadStacks[evt.ThreadIndex] = append(threadStacks[evt.ThreadIndex], len(self.Data))
-				self.Data = append(self.Data, evt)
+				threadStacks[evt.ThreadIndex] = append(threadStacks[evt.ThreadIndex], len(newData))
+				newData = append(newData, evt)
 			}
 		} else {
-			self.Data = append(self.Data, evt)
+			newData = append(newData, evt)
 		}
 	}
 
 	self.setStatus("Sorting events")
-	sort.Sort(event.ByType(self.Data))
+	sort.Sort(event.ByType(newData))
 
+	self.Data = newData
+	self.VisibleThreadIDs = newVisibleThreadIDs
+	
 	self.setStatus("Loading: done")
 }
 
