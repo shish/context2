@@ -250,7 +250,7 @@ func (self *Data) LoadBookmarks() {
 	defer conn.Close()
 
 	n := 0
-	self.Bookmarks = []Bookmark{}
+	newBookmarks := []Bookmark{}
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
 	for query, err := conn.Query(sql); err == nil; err = query.Next() {
@@ -262,8 +262,10 @@ func (self *Data) LoadBookmarks() {
 		var startText, endText string
 		query.Scan(&startTime, &startText, &endText)
 
-		self.Bookmarks = append(self.Bookmarks, Bookmark{startTime, startText})
+		newBookmarks = append(newBookmarks, Bookmark{startTime, startText})
 	}
+
+	self.Bookmarks = newBookmarks
 }
 
 func (self *Data) LoadSettings() {
@@ -284,12 +286,16 @@ func (self *Data) LoadThreads() {
 	conn, _ := sqlite3.Open(self.databaseFile)
 	defer conn.Close()
 
+	newThreads := make([]string, 0, 0)
+
 	sql := "SELECT node, process, thread FROM threads ORDER BY id"
 	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		var node, process, thread string
 		query.Scan(&node, &process, &thread)
-		self.Threads = append(self.Threads, fmt.Sprintf("%s-%s-%s", node, process, thread))
+		newThreads = append(newThreads, fmt.Sprintf("%s-%s-%s", node, process, thread))
 	}
+
+	self.Threads = newThreads
 }
 
 func (self *Data) LoadSummary() {
@@ -298,14 +304,16 @@ func (self *Data) LoadSummary() {
 	conn, _ := sqlite3.Open(self.databaseFile)
 	defer conn.Close()
 
-	self.Summary = make([]int, 0, 1000)
+	newSummary := make([]int, 0, 1000)
 
 	sql := "SELECT events FROM summary ORDER BY id"
 	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		var val int
 		query.Scan(&val)
-		self.Summary = append(self.Summary, val)
+		newSummary = append(newSummary, val)
 	}
+
+	self.Summary = newSummary
 }
 
 func (self *Data) GetEarliestBookmarkAfter(startHint float64) float64 {
