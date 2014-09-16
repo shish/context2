@@ -2,7 +2,6 @@ package event
 
 import (
 	"fmt"
-	"github.com/mxk/go-sqlite/sqlite3"
 )
 
 /*
@@ -11,31 +10,22 @@ import (
    #########################################################################
 */
 type Event struct {
-	id            int
+	ID            int
 	ThreadID      int // index into the list of all threads
 	ThreadIndex   int // index into the list of currently visible threads
-	startLocation string
-	endLocation   string
+	StartLocation string
+	EndLocation   string
 	StartTime     float64
 	EndTime       float64
 	StartType     string
 	EndType       string
-	startText     string
-	endText       string
+	StartText     string
+	EndText       string
 	count         int
 	Depth         int
 }
 
-func (self *Event) NewEvent(query *sqlite3.Stmt) {
-	query.Scan(
-		&self.id,
-		&self.ThreadID,
-		&self.startLocation, &self.endLocation,
-		&self.StartTime, &self.EndTime,
-		&self.StartType, &self.EndType,
-		&self.startText, &self.endText,
-	)
-
+func (self *Event) NewEvent() {
 	self.count = 1
 	self.Depth = 0
 }
@@ -45,7 +35,7 @@ func (self *Event) CanMerge(other Event, threshold float64) bool {
 		other.ThreadID == self.ThreadID &&
 		other.StartTime-self.EndTime < 0.01 &&
 		other.Length() < threshold &&
-		other.startText == self.startText)
+		other.StartText == self.StartText)
 }
 
 func (self *Event) Merge(other Event) {
@@ -56,10 +46,10 @@ func (self *Event) Merge(other Event) {
 func (self *Event) Text() string {
 	var text string
 
-	if self.startText == self.endText || self.endText == "" {
-		text = self.startText
+	if self.StartText == self.EndText || self.EndText == "" {
+		text = self.StartText
 	} else {
-		text = self.startText + "\n" + self.endText
+		text = self.StartText + "\n" + self.EndText
 	}
 
 	if self.count > 1 {
@@ -73,7 +63,7 @@ func (self *Event) Tip(offsetTime float64) string {
 	return fmt.Sprintf("%.0fms @%.0fms: %s",
 		(self.EndTime-self.StartTime)*1000,
 		(self.StartTime-offsetTime)*1000,
-		self.startLocation)
+		self.StartLocation)
 }
 
 func (self *Event) Length() float64 {

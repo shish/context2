@@ -176,7 +176,15 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 		var evt event.Event
 
 		// load the basic 1:1 data
-		evt.NewEvent(query)
+		evt.NewEvent()
+		query.Scan(
+			&evt.ID,
+			&evt.ThreadID,
+			&evt.StartLocation, &evt.EndLocation,
+			&evt.StartTime, &evt.EndTime,
+			&evt.StartType, &evt.EndType,
+			&evt.StartText, &evt.EndText,
+		)
 
 		// calculate thread Index
 		evt.ThreadIndex = -1
