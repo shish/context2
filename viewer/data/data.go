@@ -15,7 +15,7 @@ import (
 )
 
 type Data struct {
-	conn      *sqlite3.Conn
+	databaseFile string
 	config    config.Config
 	Data      []event.Event
 	Bookmarks []Bookmark
@@ -118,11 +118,7 @@ func (self *Data) OpenFile(givenFile string, config config.Config) (string, erro
 		}
 	}
 
-	if self.conn != nil {
-		self.conn.Close()
-		self.conn = nil
-	}
-	self.conn, _ = sqlite3.Open(databaseFile)
+	self.databaseFile = databaseFile
 
 	// self.LoadEvents()
 	self.Data = []event.Event{}
@@ -142,6 +138,9 @@ func (self *Data) OpenFile(givenFile string, config config.Config) (string, erro
 
 func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 	self.setStatus("Loading: events")
+
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
 
 	self.setStatus("Loading...")
 	defer self.setStatus("")
@@ -172,7 +171,7 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 		)
 		ORDER BY start_time ASC, end_time DESC
 	`
-	for query, err := self.conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql, s-self.LogStart, e-self.LogStart, cutoff); err == nil; err = query.Next() {
 		var evt event.Event
 
 		// load the basic 1:1 data
@@ -238,11 +237,14 @@ func (self *Data) LoadEvents(renderStart, renderLen, coalesce, cutoff float64) {
 func (self *Data) LoadBookmarks() {
 	self.setStatus("Loading: bookmarks")
 
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	n := 0
 	self.Bookmarks = []Bookmark{}
 
 	sql := "SELECT start_time, start_text, end_text FROM events WHERE start_type = 'BMARK' ORDER BY start_time"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		if n%1000 == 0 {
 			self.setStatus(fmt.Sprintf("Loaded %d bookmarks", n))
 		}
@@ -258,8 +260,11 @@ func (self *Data) LoadBookmarks() {
 func (self *Data) LoadSettings() {
 	self.setStatus("Loading: settings")
 
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	sql := "SELECT start_time, end_time FROM settings"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		query.Scan(&self.LogStart, &self.LogEnd)
 	}
 }
@@ -267,8 +272,11 @@ func (self *Data) LoadSettings() {
 func (self *Data) LoadThreads() {
 	self.setStatus("Loading: threads")
 
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	sql := "SELECT node, process, thread FROM threads ORDER BY id"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		var node, process, thread string
 		query.Scan(&node, &process, &thread)
 		self.Threads = append(self.Threads, fmt.Sprintf("%s-%s-%s", node, process, thread))
@@ -278,10 +286,13 @@ func (self *Data) LoadThreads() {
 func (self *Data) LoadSummary() {
 	self.setStatus("Loading: summary")
 
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	self.Summary = make([]int, 0, 1000)
 
 	sql := "SELECT events FROM summary ORDER BY id"
-	for query, err := self.conn.Query(sql); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql); err == nil; err = query.Next() {
 		var val int
 		query.Scan(&val)
 		self.Summary = append(self.Summary, val)
@@ -289,18 +300,24 @@ func (self *Data) LoadSummary() {
 }
 
 func (self *Data) GetEarliestBookmarkAfter(startHint float64) float64 {
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	var startTime float64
 	sql := "SELECT min(start_time) FROM events WHERE start_time > ? AND start_type = 'BMARK'"
-	for query, err := self.conn.Query(sql, startHint); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql, startHint); err == nil; err = query.Next() {
 		query.Scan(&startTime)
 	}
 	return startTime
 }
 
 func (self *Data) GetLatestBookmarkBefore(endHint float64) float64 {
+	conn, _ := sqlite3.Open(self.databaseFile)
+	defer conn.Close()
+
 	var endTime float64
 	sql := "SELECT max(start_time) FROM events WHERE start_time < ? AND start_type = 'BMARK'"
-	for query, err := self.conn.Query(sql, endHint); err == nil; err = query.Next() {
+	for query, err := conn.Query(sql, endHint); err == nil; err = query.Next() {
 		query.Scan(&endTime)
 	}
 	return endTime
