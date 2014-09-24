@@ -9,4 +9,6 @@ const (
 	MAX_PPS         = 5000
 	MIN_SEC         = 1
 	MAX_SEC         = 600
+	MIN_DEPTH       = 1
+	MAX_DEPTH       = 50
 )
