@@ -70,7 +70,7 @@ func progressFile(logFile string, lines chan string) {
 	close(lines)
 }
 
-func getBounds(logFile string) (float64, float64) {
+func getStart(logFile string) float64 {
 	buf := make([]byte, 1024)
 
 	fp, err := os.Open(logFile)
@@ -85,12 +85,30 @@ func getBounds(logFile string) (float64, float64) {
 			break
 		}
 	}
-	first, _ := strconv.ParseFloat(string(buf), 64)
+	first, err := strconv.ParseFloat(string(buf), 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fp.Close()
 
+	return first
+}
+
+func getEnd(logFile string) float64 {
+	buf := make([]byte, 1024)
+
+	fp, err := os.Open(logFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fp.Seek(-1024, os.SEEK_END)
 
 	buf = make([]byte, 1024)
-	n, err = fp.Read(buf)
+	n, err := fp.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var newline, space int
 	for pos := n - 1; pos >= 0; pos-- {
 		if buf[pos] == ' ' {
@@ -102,11 +120,14 @@ func getBounds(logFile string) (float64, float64) {
 			break
 		}
 	}
-	last, _ := strconv.ParseFloat(string(buf), 64)
+	last, err := strconv.ParseFloat(string(buf), 64)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fp.Close()
 
-	return first, last
+	return last
 }
 
 func compileLog(logFile string, databaseFile string) {
@@ -138,7 +159,8 @@ func compileLog(logFile string, databaseFile string) {
         )
     `)
 
-	firstEventStart, lastEventEnd := getBounds(logFile)
+	firstEventStart := getStart(logFile)
+	lastEventEnd := getEnd(logFile)
 	boundsLength := lastEventEnd - firstEventStart
 
 	lines := make(chan string)
