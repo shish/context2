@@ -25,7 +25,9 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 			// update title and scrubber, as those are ~instant
 			self.controls.active = false
 			self.master.SetTitle(self.name + ": " + databaseFile)
-			self.controls.start.SetRange(self.data.LogStart, self.data.LogEnd)
+			self.controls.start.SetRange(
+				float64(int(self.data.LogStart*10))/10,
+				float64(int(self.data.LogEnd*10) + 1)/10)
 			self.controls.active = true
 		})
 
