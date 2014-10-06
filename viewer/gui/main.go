@@ -427,7 +427,7 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 	l, _ = gtk.LabelNew("  Depth ")
 	renderSettings.Add(l)
 
-	depth, _ := gtk.SpinButtonNewWithRange(MIN_PPS, MAX_PPS, 1.0)
+	depth, _ := gtk.SpinButtonNewWithRange(MIN_DEPTH, MAX_DEPTH, 1.0)
 	depth.SetValue(float64(self.config.Render.Depth))
 	depth.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {

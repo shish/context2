@@ -125,11 +125,11 @@ func (self *ContextViewer) SetDepth(depth int) {
 	self.controls.active = false
 	defer func() { self.controls.active = true }()
 
-	if depth < 1 {
-		depth = 1
+	if depth < MIN_DEPTH {
+		depth = MIN_DEPTH
 	}
-	if depth > 20 {
-		depth = 20
+	if depth > MAX_DEPTH {
+		depth = MAX_DEPTH
 	}
 
 	self.controls.depth.SetValue(float64(depth))
