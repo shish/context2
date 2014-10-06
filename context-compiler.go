@@ -169,6 +169,11 @@ func compileLog(logFile string, databaseFile string) {
 		e := compiler.LogEvent{}
 		e.FromLine(line)
 
+		if e.Timestamp > lastEventEnd {
+			fmt.Printf("WARNING: Final log entry is not last chronologically. Expect problems. (%f > %f)\n", e.Timestamp, lastEventEnd)
+			break
+		}
+
 		summary[int((e.Timestamp-firstEventStart)/boundsLength*float64(len(summary)-1))]++
 
 		thread_name := e.ThreadID()
