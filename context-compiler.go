@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"errors"
 	"time"
 	//"runtime/pprof"
 	"github.com/mxk/go-sqlite/sqlite3"
@@ -72,15 +73,19 @@ func progressFile(logFile string, lines chan string) {
 	close(lines)
 }
 
-func getStart(logFile string) float64 {
+func getStart(logFile string) (float64, error) {
 	buf := make([]byte, 1024)
 
 	fp, err := os.Open(logFile)
 	if err != nil {
-		log.Fatal(err)
+		return 0.0, err
 	}
 
 	n, err := fp.Read(buf)
+	if err != nil {
+		return 0.0, err
+	}
+	buf = buf[:n]
 	for pos := 0; pos < n; pos++ {
 		if buf[pos] == ' ' {
 			buf = buf[:pos]
@@ -89,47 +94,52 @@ func getStart(logFile string) float64 {
 	}
 	first, err := strconv.ParseFloat(string(buf), 64)
 	if err != nil {
-		log.Fatal(err)
+		return 0.0, err
 	}
 	fp.Close()
 
-	return first
+	return first, nil
 }
 
-func getEnd(logFile string) float64 {
+func getEnd(logFile string) (float64, error) {
 	buf := make([]byte, 1024)
 
 	fp, err := os.Open(logFile)
 	if err != nil {
-		log.Fatal(err)
+		return 0.0, err
 	}
 	fp.Seek(-1024, os.SEEK_END)
 
 	buf = make([]byte, 1024)
 	n, err := fp.Read(buf)
 	if err != nil {
-		log.Fatal(err)
+		return 0.0, err
 	}
+	buf = buf[:n]
 
+	// work backwards looking for '\n' before ' '
 	var newline, space int
 	for pos := n - 1; pos >= 0; pos-- {
 		if buf[pos] == ' ' {
 			space = pos
 		}
-		if buf[pos] == '\n' && space > 0 {
+		if (buf[pos] == '\n') && space > 0 {
 			newline = pos + 1
-			buf = buf[newline:space]
 			break
 		}
 	}
+	if space == 0 {
+		return 0.0, errors.New("Couldn't find final event")
+	}
+	buf = buf[newline:space]
 	last, err := strconv.ParseFloat(string(buf), 64)
 	if err != nil {
-		log.Fatal(err)
+		return 0.0, err
 	}
 
 	fp.Close()
 
-	return last
+	return last, nil
 }
 
 func compileLog(logFile string, databaseFile string) {
@@ -137,7 +147,7 @@ func compileLog(logFile string, databaseFile string) {
 
 	db, err := sqlite3.Open(databaseFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error opening '%s': %s", databaseFile, err)
 	}
 	db.Begin()
 	createTables(db)
@@ -170,22 +180,44 @@ func compileLog(logFile string, databaseFile string) {
 		log.Fatal(err)
 	}
 
-	firstEventStart := getStart(logFile)
-	lastEventEnd := getEnd(logFile)
+	firstEventStart, err := getStart(logFile)
+	if err != nil {
+		log.Fatalf("Error finding start of time range: %s", err)
+	}
+	lastEventEnd, err := getEnd(logFile)
+	if err != nil {
+		log.Fatalf("Error finding end of time range: %s", err)
+	}
 	boundsLength := lastEventEnd - firstEventStart
+	if boundsLength == 0.0 {
+		log.Fatalf("Time range has length of 0")
+	}
+
 
 	lines := make(chan string)
+	n := 0
 	go progressFile(logFile, lines)
 	for line := range lines {
+		n++
+
 		e := compiler.LogEvent{}
-		e.FromLine(line)
+		err := e.FromLine(line)
+		if err != nil {
+			fmt.Printf("Error parsing line %d '%s': %s", n, line, err)
+			continue
+		}
 
 		if e.Timestamp > lastEventEnd {
 			fmt.Printf("WARNING: Final log entry is not last chronologically. Expect problems. (%f > %f)\n", e.Timestamp, lastEventEnd)
 			break
 		}
 
-		summary[int((e.Timestamp-firstEventStart)/boundsLength*float64(len(summary)-1))]++
+		pos := (e.Timestamp-firstEventStart)/boundsLength
+		if pos < 0.0 || pos > 1.0 {
+			fmt.Printf("Event out of bounds (%.3f): %s\n", pos, line)
+			break
+		}
+		summary[int(pos*float64(len(summary)-1))]++
 
 		thread_name := e.ThreadID()
 		_, exists := thread_name_to_id[thread_name]

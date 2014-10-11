@@ -383,7 +383,7 @@ func (self *ContextViewer) buildControlBox() *gtk.Grid {
 	renderSettings.Add(l)
 
 	// TODO: display as date, or offset, rather than unix timestamp?
-	start, _ := gtk.SpinButtonNewWithRange(0, 0, 0.1)
+	start, _ := gtk.SpinButtonNewWithRange(0, 0, 0.001)
 	start.Connect("value-changed", func(sb *gtk.SpinButton) {
 		if self.controls.active {
 			log.Println("Settings: start =", sb.GetValue())

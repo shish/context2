@@ -26,8 +26,10 @@ func (self *ContextViewer) LoadFile(givenFile string) {
 			self.controls.active = false
 			self.master.SetTitle(self.name + ": " + databaseFile)
 			self.controls.start.SetRange(
-				float64(int(self.data.LogStart*10))/10,
-				float64(int(self.data.LogEnd*10) + 1)/10)
+				self.data.LogStart,
+				self.data.LogEnd)
+				//float64(int(self.data.LogStart*10))/10,
+				//float64(int(self.data.LogEnd*10) + 1)/10)
 			self.controls.active = true
 		})
 

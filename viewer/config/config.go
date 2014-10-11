@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"os/user"
 )
@@ -30,7 +31,10 @@ type Config struct {
 }
 
 func (self *Config) Default() {
-	usr, _ := user.Current()
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal("Failed to find current user: %s", err)
+	}
 
 	self.Render.Start = 0
 	self.Render.Length = 20.0

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"errors"
 )
 
 type LogEvent struct {
@@ -16,7 +17,8 @@ type LogEvent struct {
 	Text      string
 }
 
-func (self *LogEvent) FromLine(line string) {
+func (self *LogEvent) FromLine(line string) error {
+	var err error
 	// regex?
 	/*
 		n, _ := fmt.Sscanf(line, "%f %s %d %s %s %s %s\n",
@@ -26,16 +28,21 @@ func (self *LogEvent) FromLine(line string) {
 			fmt.Printf("Error parsing %s\n", line)
 		}
 	*/
+	trimmed := strings.Trim(line, "\n")
+	parts := strings.SplitN(trimmed, " ", 7)
+	if len(parts) != 7 {return errors.New("Not enough fields")}
 
-	parts := strings.SplitN(strings.Trim(line, "\n"), " ", 7)
 	//fmt.Printf("parts: %d %s\n", len(parts), parts)
-	self.Timestamp, _ = strconv.ParseFloat(parts[0], 64)
+	self.Timestamp, err = strconv.ParseFloat(parts[0], 64)
+	if err != nil {return err}
 	self.Node = parts[1]
-	self.Process, _ = strconv.ParseInt(parts[2], 10, 32)
+	self.Process, err = strconv.ParseInt(parts[2], 10, 32)
+	if err != nil {return err}
 	self.Thread = parts[3]
 	self.Type = parts[4]
 	self.Location = parts[5]
 	self.Text = parts[6]
+	return nil
 }
 
 func (self *LogEvent) ThreadID() string {
