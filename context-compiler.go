@@ -52,12 +52,14 @@ func progressFile(logFile string, lines chan string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	f_size, err := fp.Seek(0, os.SEEK_END)
+	f_size, _ := fp.Seek(0, os.SEEK_END)
+	//f_pos := int64(0)
 	fp.Seek(0, os.SEEK_SET)
 	timestamp := time.Unix(0, 0)
 	scanner := bufio.NewScanner(fp)
 	for n := 0; scanner.Scan(); n++ {
 		line := scanner.Text()
+		//f_pos += int64(len(line)) + 1
 		lines <- line
 		if n%10000 == 0 {
 			time_taken := time.Since(timestamp).Seconds()
@@ -133,7 +135,10 @@ func getEnd(logFile string) float64 {
 func compileLog(logFile string, databaseFile string) {
 	os.Remove(databaseFile) // ignore errors
 
-	db, _ := sqlite3.Open(databaseFile)
+	db, err := sqlite3.Open(databaseFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 	db.Begin()
 	createTables(db)
 
@@ -142,11 +147,14 @@ func compileLog(logFile string, databaseFile string) {
 	thread_name_to_id := make(map[string]int)
 	thread_count := 0
 
-	sqlInsertBookmark, _ := db.Prepare(`
+	sqlInsertBookmark, err := db.Prepare(`
         INSERT INTO events(thread_id, start_location, start_time, start_type, start_text, end_time)
         VALUES(?, ?, ?, ?, ?, ?)
     `)
-	sqlInsertEvent, _ := db.Prepare(`
+	if err != nil {
+		log.Fatal(err)
+	}
+	sqlInsertEvent, err := db.Prepare(`
         INSERT INTO events(
             thread_id,
             start_location, start_time, start_type, start_text,
@@ -158,6 +166,9 @@ func compileLog(logFile string, databaseFile string) {
             ?, ?, ?, ?
         )
     `)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	firstEventStart := getStart(logFile)
 	lastEventEnd := getEnd(logFile)
@@ -295,7 +306,7 @@ func compileLog(logFile string, databaseFile string) {
 func main() {
 	var logFile, databaseFile string
 
-	//f, _ := os.Create("profile.dat")
+	//f, err := os.Create("profile.dat")
 	//pprof.StartCPUProfile(f)
 	//defer pprof.StopCPUProfile()
 
