@@ -60,10 +60,20 @@ func (self *Event) Text() string {
 }
 
 func (self *Event) Tip(offsetTime float64) string {
-	return fmt.Sprintf("%.0fms @%.0fms: %s",
+	var pre, loc string
+
+	if len(self.StartLocation) > 50 {
+		pre = "..."
+		loc = self.StartLocation[len(self.StartLocation)-50:]
+	} else {
+		pre = ""
+		loc = self.StartLocation
+	}
+
+	return fmt.Sprintf("%.0fms @%.0fms: %s%s",
 		(self.EndTime-self.StartTime)*1000,
 		(self.StartTime-offsetTime)*1000,
-		self.StartLocation)
+		pre, loc)
 }
 
 func (self *Event) Length() float64 {

@@ -205,7 +205,7 @@ func (self *ContextViewer) showTip(cr *cairo.Context, evt *event.Event, offset_t
 	cr.SetFontSize(10)
 
 	start_px := math.Max(0, (evt.StartTime-offset_time)*scale_factor)
-	length_px := 200.0 // evt.Length() * scale_factor
+	length_px := 400.0 // evt.Length() * scale_factor
 	depth_px := float64(HEADER_HEIGHT + (evt.ThreadIndex * (self.config.Render.Depth * BLOCK_HEIGHT)) + (evt.Depth * BLOCK_HEIGHT))
 
 	cr.SetSourceRGB(1.0, 1.0, 0.65)
