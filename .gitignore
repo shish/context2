@@ -4,6 +4,7 @@ bindata.go
 *.o
 *.a
 *.so
+*.dll
 
 # Folders
 _obj
