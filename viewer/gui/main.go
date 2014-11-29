@@ -72,7 +72,7 @@ func (self *ContextViewer) Init(databaseFile *string, geometry Geometry) {
 	}
 	master.SetTitle(self.name)
 	master.SetDefaultSize(geometry.W, geometry.H)
-	icon, err := gdk.PixbufNewFromFile("data/context-icon.svg")
+	icon, err := gdk.PixbufNewFromFile("data/context-icon.png")
 	if err == nil {
 		master.SetIcon(icon)
 	}
@@ -314,7 +314,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 		aboutButton.Connect("activate", func(btn *gtk.MenuItem) {
 			abt, _ := gtk.AboutDialogNew()
 
-			logo, err := gdk.PixbufNewFromFileAtScale("data/context-name.svg", 300, 200, true)
+			logo, err := gdk.PixbufNewFromFileAtScale("data/context-name.png", 300, 200, true)
 			if err == nil {
 				abt.SetLogo(logo)
 			}
@@ -327,7 +327,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 			abt.SetWebsite("http://code.shishnet.org/context")
 			//abt.SetAuthors([]string{"Shish <webmaster@shishnet.org>"})
 
-			icon, err := gdk.PixbufNewFromFile("data/tools-icon.svg")
+			icon, err := gdk.PixbufNewFromFile("data/tools-icon.png")
 			if err == nil {
 				abt.SetIcon(icon)
 			}
