@@ -43,7 +43,7 @@ func main() {
 	gtk.Init(nil)
 
 	cv := gui.ContextViewer{}
-	cv.Init(filename, gui.Geometry{w, h})
+	cv.Init(filename, gui.Geometry{W: w, H: h})
 
 	gtk.Main()
 }

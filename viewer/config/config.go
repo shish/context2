@@ -33,7 +33,7 @@ type Config struct {
 func (self *Config) Default() {
 	usr, err := user.Current()
 	if err != nil {
-		log.Fatal("Failed to find current user: %s", err)
+		log.Fatalf("Failed to find current user: %s\n", err)
 	}
 
 	self.Render.Start = 0

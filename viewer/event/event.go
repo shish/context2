@@ -93,7 +93,6 @@ func (a ByType) Less(i, j int) bool {
 	} else {
 		return types.pos(a[i].StartType) < types.pos(a[j].StartType)
 	}
-	return false
 }
 
 func CmpEvent(a *Event, b *Event) bool {
