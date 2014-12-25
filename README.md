@@ -10,6 +10,12 @@ with a bunch of features for easy parsing and browsing.
 
 For a user-level guide, see http://code.shishnet.org/context/
 
+For generating data that this viewer views, see http://github.com/shish/context-apis
+
+Currently the viewer is GPLv3 (with the aim of having one viewer app which stands
+alone) and client libraries are MIT (with the aim of them multiplying far and wide
+and being embedded all over the place)
+
 
 Building
 --------
