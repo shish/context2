@@ -45,7 +45,4 @@ func main() {
 		fmt.Fprintf(fp, "%s", b64(fn));
 	}
 	fmt.Fprintf(fp, ")\n");
-	
-	exec.Command("go", "build", "context-compiler.go");
-	exec.Command("go", "build", "context-viewer.go");
 }
