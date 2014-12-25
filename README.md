@@ -59,6 +59,13 @@ Note in particular that the "comment" field can contain variable data,
 so rather than just "average search took 5s", you can see "search for
 'foo' took 3s", "search for 'bar baz qux' took 20s".
 
+Also, you can profile across processes, or even across machines -
+`sort *.ctxt` will output a combined log file for all .ctxt files
+in the current folder. This allows you to see that on one box there
+is a large delay in the "fetching results from data store" call,
+and then just below it, you can see what the data store process on
+another server is doing during that wait.
+
 Building
 --------
 The codebase should probably be more idiomatically Go-like to be built
