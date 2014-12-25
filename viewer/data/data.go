@@ -77,15 +77,15 @@ func (self *Data) OpenFile(givenFile string, config config.Config) (string, erro
 	logFile := path + ".ctxt"
 	databaseFile := path + ".cbin"
 
-	logStat, err := os.Stat(logFile)
-	if err != nil {
-		return "", err
-	}
-
 	// if the user picked a log file, compile it (unless an
 	// up-to-date version already exists)
 	if givenFile == logFile {
 		needsRecompile := false
+
+		logStat, err := os.Stat(logFile)
+		if err != nil {
+			return "", err
+		}
 
 		databaseStat, err := os.Stat(databaseFile)
 
