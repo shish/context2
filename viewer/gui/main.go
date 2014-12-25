@@ -156,7 +156,7 @@ func (self *ContextViewer) buildMenu() *gtk.MenuBar {
 
 		openButton, _ := gtk.MenuItemNewWithLabel("Open .ctxt / .cbin")
 		openButton.Connect("activate", func() {
-			dialog, _ := gtk.FileChooserDialogNew2(
+			dialog, _ := gtk.FileChooserDialogNewWith2Buttons(
 				"Open File", self.master, gtk.FILE_CHOOSER_ACTION_OPEN,
 				"Cancel", gtk.RESPONSE_CANCEL,
 				"Open", gtk.RESPONSE_ACCEPT)
