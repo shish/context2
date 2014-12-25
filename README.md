@@ -14,7 +14,9 @@ For generating data that this viewer views, see http://github.com/shish/context-
 
 Currently the viewer is GPLv3 (with the aim of having one viewer app which stands
 alone) and client libraries are MIT (with the aim of them multiplying far and wide
-and being embedded all over the place)
+and being embedded all over the place). If initial response to the open source
+release is overwhelming sensible reasons that those are bad choices they could
+be changed (though I'd only ever change to something OSI-approved).
 
 
 Building
