@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -53,9 +54,9 @@ func progressFile(logFile string, lines chan string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	f_size, _ := fp.Seek(0, os.SEEK_END)
+	f_size, _ := fp.Seek(0, io.SeekEnd)
 	//f_pos := int64(0)
-	fp.Seek(0, os.SEEK_SET)
+	fp.Seek(0, io.SeekStart)
 	timestamp := time.Unix(0, 0)
 	scanner := bufio.NewScanner(fp)
 	for n := 0; scanner.Scan(); n++ {
@@ -64,7 +65,7 @@ func progressFile(logFile string, lines chan string) {
 		lines <- line
 		if n%10000 == 0 {
 			time_taken := time.Since(timestamp).Seconds()
-			f_pos, _ := fp.Seek(0, os.SEEK_CUR)
+			f_pos, _ := fp.Seek(0, io.SeekCurrent)
 			fmt.Printf("Imported %d events (%d%%, %d/s)\n", n, f_pos*100.0/f_size, int(1000.0/time_taken))
 			timestamp = time.Now()
 		}
@@ -108,7 +109,7 @@ func getEnd(logFile string) (float64, error) {
 	if err != nil {
 		return 0.0, err
 	}
-	fp.Seek(-1024, os.SEEK_END)
+	fp.Seek(-1024, io.SeekEnd)
 
 	buf = make([]byte, 1024)
 	n, err := fp.Read(buf)
